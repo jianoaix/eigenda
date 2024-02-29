@@ -49,6 +49,15 @@ type (
 		BlockNumber     uint64
 		TransactionHash []byte
 	}
+	OperatorQuorum struct {
+		Operator      []byte
+		QuorumNumbers []byte
+		BlockNumber   uint64
+	}
+	OperatorQuorumEvents struct {
+		AddedToQuorum     []*OperatorQuorum
+		RemovedFromQuorum []*OperatorQuorum
+	}
 	DeregisteredOperatorInfo struct {
 		IndexedOperatorInfo *core.IndexedOperatorInfo
 		// BlockNumber is the block number at which the operator was deregistered.
@@ -79,6 +88,16 @@ type (
 	NonSigner struct {
 		OperatorId string
 		Count      int
+	}
+	BatchNonSigningInfo struct {
+		QuorumNumbers        []uint8
+		ReferenceBlockNumber uint64
+		// The operatorIds of nonsigners.
+		NonSigners []string
+		// The corresponding addresses of nonsigners.
+		// Note the Batch events do not contain address, so we'll separately perform
+		// smart contract lookup to get the conversion.
+		NonSignersAddress []string
 	}
 	subgraphClient struct {
 		api    subgraph.Api
@@ -132,6 +151,67 @@ func (sc *subgraphClient) QueryBatchNonSigningOperatorIdsInInterval(ctx context.
 		}
 	}
 	return batchNonSigningOperatorIds, nil
+}
+
+func (sc *subgraphClient) QueryBatchNonSigningInfoInInterval(ctx context.Context, intervalSeconds int64) ([]*BatchNonSigningInfo, error) {
+	batchNonSigningInfoGql, err := sc.api.QueryBatchNonSigningInfo(ctx, intervalSeconds)
+	if err != nil {
+		return nil, err
+	}
+	batchNonSigningInfo := make([]*BatchNonSigningInfo, len(batchNonSigningInfoGql))
+	for i, infoGql := range batchNonSigningInfoGql {
+		info, err := convertNonSigningInfo(infoGql)
+		if err != nil {
+			return nil, err
+		}
+		batchNonSigningInfo[i] = info
+	}
+	return batchNonSigningInfo, nil
+}
+
+func (sc *subgraphClient) QueryOperatorQuorumEvent(ctx context.Context, startBlock, endBlock uint64) (*OperateQuorumEvents, error) {
+	var (
+		operatorAddedQuorum   []*subgraph.OperatorQuorum
+		operatorRemovedQuorum []*subgraph.OperatorQuorum
+		err                   error
+		pool                  = workerpool.New(maxWorkerPoolSize)
+	)
+
+	pool.Submit(func() {
+		added, errQ := sc.api.QueryOperatorAddedToQuorum(ctx, startBlock, endBlock)
+		if errQ != nil {
+			err = errQ
+		}
+		operatorAddedQuorum = added
+	})
+
+	pool.Submit(func() {
+		removed, errQ := sc.api.QueryOperatorRemovedFromQuorum(ctx, startBlock, endBlock)
+
+		if errQ != nil {
+			err = errQ
+		}
+		operatorRemovedQuorum = removed
+	})
+	pool.StopWait()
+
+	if err != nil {
+		return nil, err
+	}
+
+	addedQuorum, err := parseOperatorQuorum(operatorAddedQuorum)
+	if err != nil {
+		return nil, err
+	}
+	removedQuorum, err := parseOperatorQuorum(operatorRemovedFromQuorum)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OperateQuorumEvents{
+		AddedToQuorum:     addedQuorum,
+		RemovedFromQuorum: removedQuorum,
+	}, nil
 }
 
 func (sc *subgraphClient) QueryNumBatchesByOperatorsInThePastBlockTimestamp(ctx context.Context, blockTimestamp uint64, nonSigners map[string]int) (map[string]int, error) {
@@ -500,5 +580,54 @@ func convertOperator(operator *subgraph.Operator) (*Operator, error) {
 		BlockTimestamp:  timestamp,
 		BlockNumber:     blockNum,
 		TransactionHash: []byte(operator.TransactionHash),
+	}, nil
+}
+
+func parseOperatorQuorum(operatorQuorum []*subgraph.OperatorQuorum) ([]*OperatorQuorum, error) {
+	parsed := make([]*OperatorQuorum, len(operatorQuorum))
+	for _, opq := range operatorQuorum {
+		blockNum, err := strconv.ParseUint(string(opq.BlockNumber), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		event := &OperatorQuorum{
+			Operator:      []byte(opq.Operator),
+			QuorumNumbers: []byte(opq.QuorumNumbers),
+			BlockNumber:   blockNum,
+		}
+		parsed = append(parsed, event)
+	}
+	// Sort the quorum events by ascending order of block number.
+	sort.SliceStable(parsed, func(i, j int) bool {
+		if parsed[i].BlockNumber == parsed[j].BlockNumber {
+			return parsed[i].Operator < parsed[j].Operator
+		}
+		return parsed[i].BlockNumber < parsed[j].BlockNumber
+	})
+	return parsed, nil
+}
+
+func convertNonSigningInfo(infoGql *subgraph.BatchNonSigningInfo) (*BatchNonSigningInfo, error) {
+	quorums := make([]uint8)
+	for _, q := range infoGql.BatchHeader.QuorumNumbers {
+		quorum, err := strconv.ParseUint(string(q), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		quorums = append(quorums, quorum)
+	}
+	blockNum, err := strconv.ParseUint(string(infoGql.BatchHeader.ReferenceBlockNumber), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	nonSigners := make([]string)
+	for _, nonSigner := range infoGql.NonSigning.NonSigners {
+		nonSigners = append(nonSigners, string(nonSigner.OperatorId))
+	}
+
+	return &BatchNonSigningInfo{
+		QuorumNumbers:        quorums,
+		ReferenceBlockNumber: blockNum,
+		NonSigners:           nonSigners,
 	}, nil
 }
