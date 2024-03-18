@@ -3,6 +3,7 @@ package dataapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -81,6 +82,7 @@ type (
 
 	OperatorNonsigningPercentageMetrics struct {
 		OperatorId           string  `json:"operator_id"`
+		OperatorAddress      string  `json:"operator_address"`
 		QuorumId             uint8   `json:"quorum_id"`
 		TotalUnsignedBatches int     `json:"total_unsigned_batches"`
 		TotalBatches         int     `json:"total_batches"`
@@ -469,9 +471,15 @@ func (s *server) FetchOperatorsNonsigningPercentageHandler(c *gin.Context) {
 	}
 	metric, err := s.getOperatorNonsigningRate(c.Request.Context(), interval)
 	if err != nil {
+		fmt.Println("XXXX error at last:", err)
 		s.metrics.IncrementFailedRequestNum("FetchOperatorsNonsigningPercentageHandler")
 		errorResponse(c, err)
 		return
+	}
+	data := metric.Data
+	fmt.Println("XXXX success at last, len data:", len(data))
+	for _, op := range data {
+		fmt.Println(fmt.Sprintf("operatorId: %s, operatorAddress: %s, quorumId: %d, unsignedCount: %d, totalCount %d, nonsigningRate: %f", op.OperatorId, op.OperatorAddress, op.QuorumId, op.TotalUnsignedBatches, op.TotalBatches, op.Percentage))
 	}
 
 	s.metrics.IncrementSuccessfulRequestNum("FetchOperatorsNonsigningPercentageHandler")
