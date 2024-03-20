@@ -42,6 +42,14 @@ func (s *server) getOperatorNonsigningRate(ctx context.Context, intervalSeconds 
 		}
 	}
 
+	// t := make(map[string]core.OperatorID)
+	// // Get operators' quorum change events from [startBlock+1, endBlock].
+	// addedToQuorum, removedFromQuorum, fullSigners, err := s.getOperatorQuorumEvents(ctx, startBlock, endBlock, t)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// fmt.Println("XXXX addedToQuorum len:", len(addedToQuorum), " removedFromQuorum len: ", len(removedFromQuorum), " fullSigners len: ", len(fullSigners))
+
 	// Get the nonsigner (in operatorId) list.
 	nonsigners, nonsigningWhen, err := getNonSigners(batches)
 	if err != nil {

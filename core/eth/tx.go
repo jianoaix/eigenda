@@ -17,6 +17,9 @@ import (
 
 	avsdir "github.com/Layr-Labs/eigenda/contracts/bindings/AVSDirectory"
 	blsapkreg "github.com/Layr-Labs/eigenda/contracts/bindings/BLSApkRegistry"
+	blspubkeyreg "github.com/Layr-Labs/eigenda/contracts/bindings/BLSPubkeyRegistry"
+	blspubkeycompendium "github.com/Layr-Labs/eigenda/contracts/bindings/BLSPublicKeyCompendium"
+	oldregcoordinator "github.com/Layr-Labs/eigenda/contracts/bindings/BLSRegistryCoordinatorWithIndices"
 	delegationmgr "github.com/Layr-Labs/eigenda/contracts/bindings/DelegationManager"
 	eigendasrvmg "github.com/Layr-Labs/eigenda/contracts/bindings/EigenDAServiceManager"
 	indexreg "github.com/Layr-Labs/eigenda/contracts/bindings/IIndexRegistry"
@@ -44,6 +47,7 @@ type Transactor struct {
 var _ core.Transactor = (*Transactor)(nil)
 
 type ContractBindings struct {
+	PubkeyCompendium      *blspubkeycompendium.ContractBLSPublicKeyCompendium
 	RegCoordinatorAddr    gethcommon.Address
 	ServiceManagerAddr    gethcommon.Address
 	DelegationManager     *delegationmgr.ContractDelegationManager
@@ -552,7 +556,7 @@ func (t *Transactor) BatchOperatorIDToAddress(ctx context.Context, operatorIds [
 		idx := i
 		op := operatorId
 		pool.Submit(func() {
-			addr, err := t.Bindings.BLSApkRegistry.PubkeyHashToOperator(&bind.CallOpts{
+			addr, err := t.Bindings.PubkeyCompendium.PubkeyHashToOperator(&bind.CallOpts{
 				Context: ctx,
 			}, op)
 			resultChan <- AddressOrError{address: addr, index: idx, err: err}
@@ -735,29 +739,29 @@ func (t *Transactor) updateContractBindings(blsOperatorStateRetrieverAddr, eigen
 		return err
 	}
 
-	delegationManagerAddr, err := contractEigenDAServiceManager.Delegation(&bind.CallOpts{})
-	if err != nil {
-		t.Logger.Error("Failed to fetch DelegationManager address", "err", err)
-		return err
-	}
+	// delegationManagerAddr, err := contractEigenDAServiceManager.Delegation(&bind.CallOpts{})
+	// if err != nil {
+	// 	t.Logger.Error("Failed to fetch DelegationManager address", "err", err)
+	// 	return err
+	// }
 
-	avsDirectoryAddr, err := contractEigenDAServiceManager.AvsDirectory(&bind.CallOpts{})
-	if err != nil {
-		t.Logger.Error("Failed to fetch AVSDirectory address", "err", err)
-		return err
-	}
+	// avsDirectoryAddr, err := contractEigenDAServiceManager.AvsDirectory(&bind.CallOpts{})
+	// if err != nil {
+	// 	t.Logger.Error("Failed to fetch AVSDirectory address", "err", err)
+	// 	return err
+	// }
 
-	contractAVSDirectory, err := avsdir.NewContractAVSDirectory(avsDirectoryAddr, t.EthClient)
-	if err != nil {
-		t.Logger.Error("Failed to fetch AVSDirectory contract", "err", err)
-		return err
-	}
+	// contractAVSDirectory, err := avsdir.NewContractAVSDirectory(avsDirectoryAddr, t.EthClient)
+	// if err != nil {
+	// 	t.Logger.Error("Failed to fetch AVSDirectory contract", "err", err)
+	// 	return err
+	// }
 
-	contractDelegationManager, err := delegationmgr.NewContractDelegationManager(delegationManagerAddr, t.EthClient)
-	if err != nil {
-		t.Logger.Error("Failed to fetch DelegationManager contract", "err", err)
-		return err
-	}
+	// contractDelegationManager, err := delegationmgr.NewContractDelegationManager(delegationManagerAddr, t.EthClient)
+	// if err != nil {
+	// 	t.Logger.Error("Failed to fetch DelegationManager contract", "err", err)
+	// 	return err
+	// }
 
 	registryCoordinatorAddr, err := contractEigenDAServiceManager.RegistryCoordinator(&bind.CallOpts{})
 	if err != nil {
@@ -777,17 +781,32 @@ func (t *Transactor) updateContractBindings(blsOperatorStateRetrieverAddr, eigen
 		return err
 	}
 
-	blsPubkeyRegistryAddr, err := contractIRegistryCoordinator.BlsApkRegistry(&bind.CallOpts{})
+	// blsPubkeyRegistryAddr, err := contractIRegistryCoordinator.BlsApkRegistry(&bind.CallOpts{})
+	// if err != nil {
+	// 	t.Logger.Error("Failed to fetch BlsPubkeyRegistry address", "err", err)
+	// 	return err
+	// }
+
+	// t.Logger.Debug("Addresses", "blsOperatorStateRetrieverAddr", blsOperatorStateRetrieverAddr.Hex(), "eigenDAServiceManagerAddr", eigenDAServiceManagerAddr.Hex(), "registryCoordinatorAddr", registryCoordinatorAddr.Hex(), "blsPubkeyRegistryAddr", blsPubkeyRegistryAddr.Hex())
+
+	// contractBLSPubkeyReg, err := blsapkreg.NewContractBLSApkRegistry(blsPubkeyRegistryAddr, t.EthClient)
+	// if err != nil {
+	// 	t.Logger.Error("Failed to fetch IBLSApkRegistry contract", "err", err)
+	// 	return err
+	// }
+
+	contractIBLSRegCoordWithIndices, err := oldregcoordinator.NewContractBLSRegistryCoordinatorWithIndices(registryCoordinatorAddr, t.EthClient)
+	blsPubkeyRegistryAddr, err := contractIBLSRegCoordWithIndices.BlsPubkeyRegistry(&bind.CallOpts{})
+	contractBLSPubkeyReg, err := blspubkeyreg.NewContractBLSPubkeyRegistry(blsPubkeyRegistryAddr, t.EthClient)
+	pubkeyCompendiumAddr, err := contractBLSPubkeyReg.PubkeyCompendium(&bind.CallOpts{})
 	if err != nil {
-		t.Logger.Error("Failed to fetch BlsPubkeyRegistry address", "err", err)
+		t.Logger.Error("Failed to fetch PubkeyCompendium address", "err", err)
 		return err
 	}
 
-	t.Logger.Debug("Addresses", "blsOperatorStateRetrieverAddr", blsOperatorStateRetrieverAddr.Hex(), "eigenDAServiceManagerAddr", eigenDAServiceManagerAddr.Hex(), "registryCoordinatorAddr", registryCoordinatorAddr.Hex(), "blsPubkeyRegistryAddr", blsPubkeyRegistryAddr.Hex())
-
-	contractBLSPubkeyReg, err := blsapkreg.NewContractBLSApkRegistry(blsPubkeyRegistryAddr, t.EthClient)
+	contractPubkeyCompendium, err := blspubkeycompendium.NewContractBLSPublicKeyCompendium(pubkeyCompendiumAddr, t.EthClient)
 	if err != nil {
-		t.Logger.Error("Failed to fetch IBLSApkRegistry contract", "err", err)
+		t.Logger.Error("Failed to fetch IBLSPublicKeyCompendium contract", "err", err)
 		return err
 	}
 
@@ -816,16 +835,17 @@ func (t *Transactor) updateContractBindings(blsOperatorStateRetrieverAddr, eigen
 	}
 
 	t.Bindings = &ContractBindings{
-		ServiceManagerAddr:    eigenDAServiceManagerAddr,
-		RegCoordinatorAddr:    registryCoordinatorAddr,
-		AVSDirectory:          contractAVSDirectory,
-		OpStateRetriever:      contractBLSOpStateRetr,
-		BLSApkRegistry:        contractBLSPubkeyReg,
+		ServiceManagerAddr: eigenDAServiceManagerAddr,
+		RegCoordinatorAddr: registryCoordinatorAddr,
+		// AVSDirectory:          contractAVSDirectory,
+		OpStateRetriever: contractBLSOpStateRetr,
+		// BLSApkRegistry:        contractBLSPubkeyReg,
 		IndexRegistry:         contractIIndexReg,
 		RegistryCoordinator:   contractIRegistryCoordinator,
 		StakeRegistry:         contractStakeRegistry,
 		EigenDAServiceManager: contractEigenDAServiceManager,
-		DelegationManager:     contractDelegationManager,
+		// DelegationManager:     contractDelegationManager,
+		PubkeyCompendium: contractPubkeyCompendium,
 	}
 	return nil
 }
