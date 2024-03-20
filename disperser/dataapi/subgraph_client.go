@@ -235,6 +235,34 @@ func (sc *subgraphClient) QueryOperatorQuorumEvent(ctx context.Context, startBlo
 		removedQuorumMap[opq.Operator] = append(removedQuorumMap[opq.Operator], opq)
 	}
 
+	fmt.Println("XXXXX Added Quorums, num operators: ", len(addedQuorumMap))
+	for _, OQs := range addedQuorumMap {
+		for _, oq := range OQs {
+			fmt.Println("OperatorAddress: ", oq.Operator, " QuorumNumbers: ", oq.QuorumNumbers, " BlockNumber: ", oq.BlockNumber, " BlockTimestamp: ", oq.BlockTimestamp)
+		}
+	}
+
+	fmt.Println("XXXXX Removed Quorums, num operators: ", len(removedQuorumMap))
+	for _, OQs := range removedQuorumMap {
+		for _, oq := range OQs {
+			fmt.Println("OperatorAddress: ", oq.Operator, " QuorumNumbers: ", oq.QuorumNumbers, " BlockNumber: ", oq.BlockNumber, " BlockTimestamp: ", oq.BlockTimestamp)
+		}
+	}
+
+	fmt.Println("YYYYYY Added Quorums, num operators: ", len(addedQuorumMap))
+	for _, OQs := range addedQuorumMap {
+		for _, oq := range OQs {
+			fmt.Println(fmt.Sprintf("%s,%d,%d", oq.Operator, oq.BlockNumber, oq.BlockTimestamp))
+		}
+	}
+
+	fmt.Println("YYYYY Removed Quorums, num operators: ", len(removedQuorumMap))
+	for _, OQs := range removedQuorumMap {
+		for _, oq := range OQs {
+			fmt.Println(fmt.Sprintf("%s,%d,%d", oq.Operator, oq.BlockNumber, oq.BlockTimestamp))
+		}
+	}
+
 	return &OperatorQuorumEvents{
 		AddedToQuorum:     addedQuorumMap,
 		RemovedFromQuorum: removedQuorumMap,
