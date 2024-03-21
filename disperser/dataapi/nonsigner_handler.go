@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -72,6 +73,7 @@ func (s *server) getOperatorNonsigningRate(ctx context.Context, intervalSeconds 
 	for i := range nonsigners {
 		nonsignerAddressToId[strings.ToLower(nonsignerAddresses[i].Hex())] = nonsigners[i]
 		nonsignerIdToAddress[nonsigners[i].Hex()] = strings.ToLower(nonsignerAddresses[i].Hex())
+		fmt.Println("XXX ID:", nonsigners[i].Hex(), " Address:", strings.ToLower(nonsignerAddresses[i].Hex()))
 	}
 
 	log.Debug("Prepare nonsigners took", "duration:", time.Since(stageTimer).Seconds())
@@ -159,10 +161,14 @@ func (s *server) createOperatorQuorumIntervals(ctx context.Context, nonsigners [
 		return nil, err
 	}
 	operatorInitialQuorum := make(map[string][]uint8)
+	numEmpty := 0
 	for i := range bitmaps {
 		operatorInitialQuorum[nonsigners[i].Hex()] = eth.BitmapToQuorumIds(bitmaps[i])
+		if bitmaps[i].Cmp(big.NewInt(0)) == 0 {
+			numEmpty++
+		}
 	}
-	fmt.Println("XXX operatorInitialQuorum len: ", len(operatorInitialQuorum))
+	fmt.Println("XXX operatorInitialQuorum len: ", len(operatorInitialQuorum), " numempty: ", numEmpty)
 
 	// Get operators' quorum change events from [startBlock+1, endBlock].
 	addedToQuorum, removedFromQuorum, fullSigners, err := s.getOperatorQuorumEvents(ctx, startBlock, endBlock, nonsignerAddressToId)

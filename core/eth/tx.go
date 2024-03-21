@@ -47,17 +47,18 @@ type Transactor struct {
 var _ core.Transactor = (*Transactor)(nil)
 
 type ContractBindings struct {
-	PubkeyCompendium      *blspubkeycompendium.ContractBLSPublicKeyCompendium
-	RegCoordinatorAddr    gethcommon.Address
-	ServiceManagerAddr    gethcommon.Address
-	DelegationManager     *delegationmgr.ContractDelegationManager
-	OpStateRetriever      *opstateretriever.ContractOperatorStateRetriever
-	BLSApkRegistry        *blsapkreg.ContractBLSApkRegistry
-	IndexRegistry         *indexreg.ContractIIndexRegistry
-	RegistryCoordinator   *regcoordinator.ContractRegistryCoordinator
-	StakeRegistry         *stakereg.ContractStakeRegistry
-	EigenDAServiceManager *eigendasrvmg.ContractEigenDAServiceManager
-	AVSDirectory          *avsdir.ContractAVSDirectory
+	BLSRegCoordWithIndices *oldregcoordinator.ContractBLSRegistryCoordinatorWithIndices
+	PubkeyCompendium       *blspubkeycompendium.ContractBLSPublicKeyCompendium
+	RegCoordinatorAddr     gethcommon.Address
+	ServiceManagerAddr     gethcommon.Address
+	DelegationManager      *delegationmgr.ContractDelegationManager
+	OpStateRetriever       *opstateretriever.ContractOperatorStateRetriever
+	BLSApkRegistry         *blsapkreg.ContractBLSApkRegistry
+	IndexRegistry          *indexreg.ContractIIndexRegistry
+	RegistryCoordinator    *regcoordinator.ContractRegistryCoordinator
+	StakeRegistry          *stakereg.ContractStakeRegistry
+	EigenDAServiceManager  *eigendasrvmg.ContractEigenDAServiceManager
+	AVSDirectory           *avsdir.ContractAVSDirectory
 }
 
 type BN254G1Point struct {
@@ -607,10 +608,11 @@ func (t *Transactor) GetQuorumBitmapForOperatorsAtBlockNumber(ctx context.Contex
 		i := i
 		byteId := [32]byte(id)
 		indexPool.Submit(func() {
-			result, err := t.Bindings.RegistryCoordinator.GetQuorumBitmapIndicesAtBlockNumber(&bind.CallOpts{
+			result, err := t.Bindings.BLSRegCoordWithIndices.GetQuorumBitmapIndicesByOperatorIdsAtBlockNumber(&bind.CallOpts{
 				Context: ctx,
 			}, blockNumber, [][32]byte{byteId})
 			if err != nil {
+				fmt.Println("XXXXX failed to get bitmap index, op: ", id.Hex(), " err:", err.Error())
 				indexChan <- BitmapIndexOrError{bitmapIndex: -1, index: i, err: err}
 			} else {
 				indexChan <- BitmapIndexOrError{bitmapIndex: int(result[0]), index: i, err: err}
@@ -648,7 +650,7 @@ func (t *Transactor) GetQuorumBitmapForOperatorsAtBlockNumber(ctx context.Contex
 				resultChan <- BitmapOrError{bitmap: nil, index: i, err: errors.New("error")}
 				return
 			}
-			bm, err := t.Bindings.RegistryCoordinator.GetQuorumBitmapAtBlockNumberByIndex(&bind.CallOpts{
+			bm, err := t.Bindings.BLSRegCoordWithIndices.GetQuorumBitmapByOperatorIdAtBlockNumberByIndex(&bind.CallOpts{
 				Context: ctx,
 			}, op, blockNumber, big.NewInt(int64(bitmapIndex)))
 			resultChan <- BitmapOrError{bitmap: bm, index: i, err: err}
@@ -835,8 +837,9 @@ func (t *Transactor) updateContractBindings(blsOperatorStateRetrieverAddr, eigen
 	}
 
 	t.Bindings = &ContractBindings{
-		ServiceManagerAddr: eigenDAServiceManagerAddr,
-		RegCoordinatorAddr: registryCoordinatorAddr,
+		BLSRegCoordWithIndices: contractIBLSRegCoordWithIndices,
+		ServiceManagerAddr:     eigenDAServiceManagerAddr,
+		RegCoordinatorAddr:     registryCoordinatorAddr,
 		// AVSDirectory:          contractAVSDirectory,
 		OpStateRetriever: contractBLSOpStateRetr,
 		// BLSApkRegistry:        contractBLSPubkeyReg,

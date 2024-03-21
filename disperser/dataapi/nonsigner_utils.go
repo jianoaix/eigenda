@@ -84,6 +84,7 @@ func CreateOperatorQuorumIntervals(
 	addedToQuorumErr := "cannot add operator %s to quorum %d at block number %d, " +
 		"the operator is already in the quorum since block number %d"
 	for op, initialQuorums := range operatorInitialQuorum {
+		fmt.Println("XXXXX compute quorum interval for op:", op, " initial quorums:", initialQuorums)
 		operatorQuorumIntervals[op] = make(map[uint8][]BlockInterval)
 		openQuorum := make(map[uint8]uint32)
 		for _, q := range initialQuorums {
@@ -144,6 +145,7 @@ func CreateOperatorQuorumIntervals(
 			}
 			operatorQuorumIntervals[op][q] = append(operatorQuorumIntervals[op][q], interval)
 		}
+		fmt.Println("XXXXX compute quorum interval for op:", op, " quorum-intervals: ", operatorQuorumIntervals[op])
 	}
 
 	return operatorQuorumIntervals, nil
