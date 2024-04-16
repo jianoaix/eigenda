@@ -9,20 +9,34 @@ const (
 	ejectorNamespace = "ejector"
 )
 
-var (
-	// The "initiator" could be "periodic" or "requested" (invoked by client of the ejector).
-	// The "status" indicates the result of the ejection.
-	NumEjection = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: ejectorNamespace,
-		Name:      "eigenda_ejection_total",
-		Help:      "the total number of ejection attempts",
-	}, []string{"status", "initiator"})
+type MetricsConfig struct {
+	HTTPPort      string
+	EnableMetrics bool
+}
 
-	// The "type" could be "eligible" or "ejected". They are recording the number of operators
-	// that are eligible to eject and the number that are actually ejected, for each quorum.
-	NumOperators = promauto.NewCounterVec(prometheus.CounterOpts{
+type Metrics struct {
+	registry *prometheus.Registry
+}
+
+var (
+	// The "requestor" could be "periodic" (internally initiated ejection) or "external"
+	// (invoked by an external client of the ejector).
+	// The "status" indicates the result of the ejection request.
+	EjectionRequest = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: ejectorNamespace,
+		Name:      "eigenda_ejection_request_total",
+		Help:      "the total number of ejection requests",
+	}, []string{"status", "requestor"})
+
+	// The "state" could be "eligible" (at the moment of ejection requested) or "ejected", and the
+	// "type" could be "number" or "stake".
+	// These are recording the operators that are eligible to eject and that are actually ejected,
+	// for each quorum.
+	// By the "type" label it'll record both the number of these operators as well as the stake
+	// they represent.
+	Operators = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ejectorNamespace,
 		Name:      "eigenda_operators_total",
 		Help:      "the total number of operators to be ejected or actually ejected",
-	}, []string{"quorum", "type"})
+	}, []string{"quorum", "state", "type"})
 )
