@@ -1,20 +1,20 @@
 package ejector
 
 import (
-	"crypto/ecdsa"
+	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sort"
 	"sync"
-	"time"
 
 	"cloud.google.com/go/logging"
 	"github.com/Layr-Labs/eigenda/core"
 	"github.com/Layr-Labs/eigenda/disperser/dataapi"
 )
 
-// The caller should ensure "stakeShare" is in range [0, 1].
+// The caller should ensure "stakeShare" is in range (0, 1].
 func stakeShareToSLA(stakeShare float64) float64 {
 	switch stakeShare {
 	case stakeShare > 0.1:
@@ -33,69 +33,62 @@ func operatorPerfScore(stakeShare float64, nonsigningRate float64) float64 {
 		return 1.0
 	}
 	sla := stakeShareToSLA(stakeShare)
-	if sla >= 1 {
-		return 0
-	}
 	perf := (1 - sla) / nonsigningRate
 	return perf / (1.0 + perf)
 }
 
-func computePerfScore(metric *OperatorNonsigningPercentageMetrics) {
+func computePerfScore(metric *OperatorNonsigningPercentageMetrics) float64 {
 	return operatorPerfScore(metric.StakePercentage, metric.Percentage/100.0)
 }
 
 type Ejector struct {
-	Logger     logging.Logger
-	Transactor core.Transactor
-	privateKey *ecdsa.PrivateKey
-
+	Logger            logging.Logger
+	Transactor        core.Transactor
 	nonsigningRateUri string
-	ejectionInterval  time.Duration
-	lastEjection      time.Time
+	Metrics           *Metrics
 
+	// For serializing the ejection requests.
 	mu sync.Mutex
 }
 
-func (e *Ejector) Start() {
-	go e.ejectLoop()
-}
-
-func (e *Ejector) ejectLoop() {
-	ticker := time.NewTicker(e.ejectionInterval)
-	defer ticker.Stop()
-	for range ticker.C {
-		e.eject()
+func NewEjector(config *Config, logger logging.Logger, tx core.Transactor, metric *Metrics) *Ejector {
+	return &Ejector{
+		Logger:            logger.With("component", "Ejector"),
+		Transactor:        tx,
+		nonsigningRateUri: fmt.Sprintf("%s%s", config.DataApiHostName, config.NonsigningRateApiPath),
+		Metrics:           metrics,
 	}
 }
 
-func (e *Ejector) handleEjectionRequest(w http.ResponseWriter, r *http.Request) {
-	e.eject()
-	w.WriteHeader(http.StatusOK)
-}
-
-func (e *Ejector) eject() {
+func (e *Ejector) eject(ctx context.Context, lookbackWindow, endTime int64) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	nonsigners, err := e.getNonsigners()
+	nonsigners, err := e.getNonsigners(lookbackWindow, endTime)
 	if err != nil {
 		return
 	}
 
 	// Rank the operators for each quorum by the operator performance score.
-	// The lower perf score will get ejected with priority in case of rate limiting.
+	// The operators with lower perf score will get ejected with priority in case of
+	// rate limiting.
 	sort.Slice(nonsigners, func(i, j int) bool {
-		if nonsigners[i].QuorumId == nonsigners[j].QuorumId) {
+		if nonsigners[i].QuorumId == nonsigners[j].QuorumId {
 			return computePerfScore(nonsigners[i]) < computePerfScore(nonsigners[j])
 		}
 		return nonsigners[i].QuorumId < nonsigners[j].QuorumId
 	})
 
 	operatorsByQuorum := convertOperators(nonsigners)
+
+	// TODO: execute the ejection
+
+	return nil
 }
 
-func (e *Ejection) getNonsigners() ([]*dataapi.OperatorNonsigningPercentageMetrics, error) {
-	response, err := http.Get(e.nonsigningRateUri)
+func (e *Ejection) getNonsigners(lookbackWindow, endTime int64) ([]*dataapi.OperatorNonsigningPercentageMetrics, error) {
+	uri := fmt.Sprintf("%s?end=%d&interval=%d", e.nonsigningRateUri, endTime, lookbackWindow)
+	response, err := http.Get(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +108,7 @@ func (e *Ejection) getNonsigners() ([]*dataapi.OperatorNonsigningPercentageMetri
 	nonsigners := make([]*OperatorNonsigningPercentageMetrics)
 	for _, metric := range data.Data {
 		// Collect only the nonsigners who violate the SLA.
-		if metric.Percentage/100.0 > 1 - stakeShareToSLA(metric.StakePercentage) {
+		if metric.Percentage/100.0 > 1-stakeShareToSLA(metric.StakePercentage) {
 			nonsigners = append(nonsigners, metric)
 		}
 	}

@@ -52,8 +52,11 @@ func EjectorMain(ctx *cli.Context) error {
 		return
 	}
 
-	// create ejector
-	// create server
+	metrics := NewMetrics()
+
+	ejector := ejector.NewEjector(config, logger, tx, metrics)
+
+	// TODO: create server
 
 	return nil
 }

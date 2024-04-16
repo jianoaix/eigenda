@@ -30,7 +30,7 @@ func NewMetrics() *Metrics {
 		// The "requestor" could be:
 		// - "periodic": internally initiated ejection; or
 		// - "external": invoked by an external client of the ejector
-		// The "status" indicates the result of the ejection request.
+		// The "status" indicates the final processing result of the ejection request.
 		EjectionRequests: promauto.With(reg).NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: ejectorNamespace,
@@ -41,8 +41,8 @@ func NewMetrics() *Metrics {
 		),
 
 		// The "state" could be:
-		// - "eligible": operator eligible for ejection at the moment of ejection requested; or
-		// - "ejected": operator actually got ejected
+		// - "requested": operator is requested for ejection; or
+		// - "ejected": operator is actually ejected
 		// The  "type" could be "number" or "stake", for the number of operators as well as the
 		// stake they represent.
 		Operators: promauto.With(reg).NewCounterVec(
