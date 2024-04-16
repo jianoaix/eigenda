@@ -7,6 +7,13 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	AppName   = "da-ejector"
+	Version   = "0.6.1"
+	GitCommit = ""
+	GitDate   = ""
+)
+
 type Config struct {
 	EthClientConfig geth.EthClientConfig
 	LoggerConfig    common.LoggerConfig

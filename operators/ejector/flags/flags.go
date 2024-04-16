@@ -1,4 +1,4 @@
-package ejector
+package flags
 
 import (
 	"time"
