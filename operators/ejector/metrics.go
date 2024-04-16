@@ -11,7 +11,7 @@ const (
 )
 
 type MetricsConfig struct {
-	HTTPPort      string
+	MetricsPort   string
 	EnableMetrics bool
 }
 
@@ -27,8 +27,9 @@ func NewMetrics() *Metrics {
 	reg.MustRegister(collectors.NewGoCollector())
 
 	metrics := &Metrics{
-		// The "requestor" could be "periodic" (internally initiated ejection) or "external"
-		// (invoked by an external client of the ejector).
+		// The "requestor" could be:
+		// - "periodic": internally initiated ejection; or
+		// - "external": invoked by an external client of the ejector
 		// The "status" indicates the result of the ejection request.
 		EjectionRequests: promauto.With(reg).NewCounterVec(
 			prometheus.CounterOpts{
@@ -39,12 +40,11 @@ func NewMetrics() *Metrics {
 			[]string{"status", "requestor"},
 		),
 
-		// The "state" could be "eligible" (at the moment of ejection requested) or "ejected", and the
-		// "type" could be "number" or "stake".
-		// These are recording the operators that are eligible to eject and that are actually ejected,
-		// for each quorum.
-		// By the "type" label it'll record both the number of these operators as well as the stake
-		// they represent.
+		// The "state" could be:
+		// - "eligible": operator eligible for ejection at the moment of ejection requested; or
+		// - "ejected": operator actually got ejected
+		// The  "type" could be "number" or "stake", for the number of operators as well as the
+		// stake they represent.
 		Operators: promauto.With(reg).NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: ejectorNamespace,

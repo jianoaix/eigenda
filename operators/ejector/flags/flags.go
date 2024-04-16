@@ -43,6 +43,18 @@ var (
 		Required: true,
 		EnvVar:   common.PrefixEnvVar(envVarPrefix, "ENABLE_METRICS"),
 	}
+	SocketAddrFlag = cli.StringFlag{
+		Name:     common.PrefixFlag(FlagPrefix, "socket-addr"),
+		Usage:    "the socket address of the ejector server",
+		EnvVar:   common.PrefixEnvVar(envVarPrefix, "SOCKET_ADDR"),
+		Required: true,
+	}
+	AllowOriginsFlag = cli.StringSliceFlag{
+		Name:     common.PrefixFlag(FlagPrefix, "allow-origins"),
+		Usage:    "Set the allowed origins for CORS requests",
+		EnvVar:   common.PrefixEnvVar(envVarPrefix, "ALLOW_ORIGINS"),
+		Required: true,
+	}
 
 	// Optional flags
 	EjectionIntervalFlag = cli.DurationFlag{
@@ -58,5 +70,12 @@ var (
 		Required: false,
 		Value:    "9091",
 		EnvVar:   common.PrefixEnvVar(EnvVarPrefix, "METRICS_PORT"),
+	}
+	ServerModeFlag = cli.StringFlag{
+		Name:     common.PrefixFlag(FlagPrefix, "server-mode"),
+		Usage:    "Set the mode of the server (debug, release or test)",
+		EnvVar:   common.PrefixEnvVar(envVarPrefix, "SERVER_MODE"),
+		Required: false,
+		Value:    "debug",
 	}
 )

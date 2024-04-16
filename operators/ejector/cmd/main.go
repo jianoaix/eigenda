@@ -40,12 +40,7 @@ func EjectorMain(ctx *cli.Context) error {
 		return err
 	}
 
-	ethConfig := geth.EthClientConfig{
-		RPCURLs:          []string{config.ChainRpcUrl},
-		PrivateKeyString: *privateKey,
-		NumConfirmations: config.NumConfirmations,
-	}
-	client, err := geth.NewClient(ethConfig, gethcommon.Address{}, 0, logger)
+	client, err := geth.NewClient(config.EthClientConfig, gethcommon.Address{}, 0, logger)
 	if err != nil {
 		log.Printf("Error: failed to create eth client: %v", err)
 		return
@@ -56,6 +51,9 @@ func EjectorMain(ctx *cli.Context) error {
 		log.Printf("Error: failed to create EigenDA transactor: %v", err)
 		return
 	}
+
+	// create ejector
+	// create server
 
 	return nil
 }
