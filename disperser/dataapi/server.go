@@ -280,7 +280,7 @@ func (s *server) Start() error {
 	config := cors.DefaultConfig()
 	config.AllowOrigins = s.allowOrigins
 	config.AllowCredentials = true
-	config.AllowMethods = []string{"GET", "HEAD", "OPTIONS"}
+	config.AllowMethods = []string{"GET", "POST", "HEAD", "OPTIONS"}
 
 	if s.serverMode != gin.ReleaseMode {
 		config.AllowOrigins = []string{"*"}
@@ -332,6 +332,14 @@ func (s *server) EjectOperatorsHandler(c *gin.Context) {
 		s.metrics.ObserveLatency("EjectOperators", f*1000) // make milliseconds
 	}))
 	defer timer.ObserveDuration()
+
+	for key, value := range c.Request.Header {
+		// Iterate over all values for each header key
+		for _, v := range value {
+			// Print header key and value
+			fmt.Println("XX header kv: ", key+": "+v)
+		}
+	}
 
 	token := c.GetHeader("ejection_token")
 	fmt.Println("XX received token:", token, " server's token:", s.ejectionToken)
