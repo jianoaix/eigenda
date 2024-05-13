@@ -360,7 +360,7 @@ func (n *Node) ProcessBatch(ctx context.Context, header *core.BatchHeader, blobs
 	}
 	n.Metrics.AcceptBatches("validated", batchSize)
 	n.Metrics.ObserveLatency("StoreChunks", "validated", float64(time.Since(stageTimer).Milliseconds()))
-	log.Debug("Validate batch took", "duration:", time.Since(stageTimer))
+	log.Debug("Validate batch took", "duration:", time.Since(stageTimer).String())
 
 	// Before we sign the batch, we should first complete the batch storing successfully.
 	result := <-storeChan
@@ -383,7 +383,7 @@ func (n *Node) ProcessBatch(ctx context.Context, header *core.BatchHeader, blobs
 
 	log.Info("StoreChunks succeeded")
 
-	log.Debug("Exiting process batch", "duration", time.Since(start))
+	log.Debug("Exiting process batch", "duration", time.Since(start).String())
 	return sig, nil
 }
 
