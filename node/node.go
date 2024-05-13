@@ -306,7 +306,7 @@ func (n *Node) ProcessBatch(ctx context.Context, header *core.BatchHeader, blobs
 	n.Metrics.AcceptBatches("received", batchSize)
 
 	batchHeaderHashHex := hex.EncodeToString(batchHeaderHash[:])
-	log.Debug("Start processing a batch", "batchHeaderHash", batchHeaderHashHex, "batchSize (in bytes)", batchSize, "num of blobs", len(blobs), "referenceBlockNumber", header.ReferenceBlockNumber)
+	log.Debug("Start processing a batch", "batchHeaderHash", batchHeaderHashHex, "batchSize (in bytes)", batchSize, "num of blobs", len(blobs), "referenceBlockNumber", header.ReferenceBlockNumber, "operatorID:", n.Config.ID)
 
 	// time.Sleep(180 * time.Second)
 
