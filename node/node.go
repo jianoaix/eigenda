@@ -308,6 +308,8 @@ func (n *Node) ProcessBatch(ctx context.Context, header *core.BatchHeader, blobs
 	batchHeaderHashHex := hex.EncodeToString(batchHeaderHash[:])
 	log.Debug("Start processing a batch", "batchHeaderHash", batchHeaderHashHex, "batchSize (in bytes)", batchSize, "num of blobs", len(blobs), "referenceBlockNumber", header.ReferenceBlockNumber)
 
+	time.Sleep(180 * time.Second)
+
 	// Store the batch.
 	// Run this in a goroutine so we can parallelize the batch storing and batch
 	// verifaction work.
