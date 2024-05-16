@@ -126,6 +126,12 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	}
 
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
+	dl, ok := ctx.Deadline()
+	if ok {
+		c.logger.Debug("XXX deadlline", "deadline", dl.Sub(time.Now()))
+	} else {
+		c.logger.Debug("XXX failed to get deadline")
+	}
 	c.logger.Debug("XXX sending chunks to operator", "operator", op.Socket, "size", totalSize, "deadline", c.Timeout)
 	reply, err := gc.StoreChunks(ctx, request, opt)
 
