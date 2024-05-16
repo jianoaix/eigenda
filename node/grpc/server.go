@@ -198,6 +198,13 @@ func (s *Server) StoreChunks(ctx context.Context, in *pb.StoreChunksRequest) (*p
 	}))
 	defer timer.ObserveDuration()
 
+	dl, ok := ctx.Deadline()
+	if ok {
+		s.node.Logger.Error("XXX ctx deadline", "deadline", dl)
+	} else {
+		s.node.Logger.Error("XXX ctx deadline not Ok")
+	}
+
 	// Validate the request.
 	if err := s.validateStoreChunkRequest(in); err != nil {
 		return nil, err
