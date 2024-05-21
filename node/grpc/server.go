@@ -131,6 +131,7 @@ func (s *Server) serveRetrieval() error {
 }
 
 func (s *Server) handleStoreChunksRequest(ctx context.Context, in *pb.StoreChunksRequest) (*pb.StoreChunksReply, error) {
+	start := time.Now()
 	// Get batch header hash
 	batchHeader, err := GetBatchHeader(in)
 	if err != nil {
@@ -141,11 +142,13 @@ func (s *Server) handleStoreChunksRequest(ctx context.Context, in *pb.StoreChunk
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("XXX deser blobs time:", time.Since(start))
 
 	sig, err := s.node.ProcessBatch(ctx, batchHeader, blobs, in.GetBlobs())
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("XXX processBatch time:", time.Since(start))
 
 	sigData := sig.Serialize()
 
@@ -210,6 +213,8 @@ func (s *Server) StoreChunks(ctx context.Context, in *pb.StoreChunksRequest) (*p
 	} else {
 		s.node.Metrics.RecordRPCRequest("StoreChunks", "success", time.Since(start))
 		s.node.Logger.Info("StoreChunks RPC succeeded", "duration", time.Since(start))
+
+		fmt.Println("XX StoreChunks RPC succeeded", "duration", time.Since(start))
 	}
 
 	return reply, err
