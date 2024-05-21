@@ -39,7 +39,7 @@ func GetBatchHeader(in *pb.StoreChunksRequest) (*core.BatchHeader, error) {
 func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 	blobs := make([]*core.BlobMessage, len(in.GetBlobs()))
 	start := time.Now()
-	pool := workerpool.New(16)
+	pool := workerpool.New(32)
 	resultChan := make(chan error, len(blobs))
 	for i, blob := range in.GetBlobs() {
 		i := i
