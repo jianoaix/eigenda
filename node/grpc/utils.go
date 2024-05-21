@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/Layr-Labs/eigenda/api"
 	pb "github.com/Layr-Labs/eigenda/api/grpc/node"
@@ -36,6 +37,8 @@ func GetBatchHeader(in *pb.StoreChunksRequest) (*core.BatchHeader, error) {
 // interface, see grpc.Server.validateStoreChunkRequest.
 func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 	blobs := make([]*core.BlobMessage, len(in.GetBlobs()))
+	start := time.Now()
+	var chunkD time.Duration
 	for i, blob := range in.GetBlobs() {
 		blobHeader, err := GetBlobHeaderFromProto(blob.GetHeader())
 
@@ -50,6 +53,7 @@ func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 		for j, chunks := range blob.GetBundles() {
 			quorumID := blob.GetHeader().GetQuorumHeaders()[j].GetQuorumId()
 			bundles[uint8(quorumID)] = make([]*encoding.Frame, len(chunks.GetChunks()))
+			chunkStart := time.Now()
 			for k, data := range chunks.GetChunks() {
 				chunk, err := new(encoding.Frame).Deserialize(data)
 				if err != nil {
@@ -57,6 +61,7 @@ func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 				}
 				bundles[uint8(quorumID)][k] = chunk
 			}
+			chunkD += time.Since(chunkStart)
 		}
 
 		blobs[i] = &core.BlobMessage{
@@ -64,6 +69,7 @@ func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 			Bundles:    bundles,
 		}
 	}
+	fmt.Println("XXX total time:", time.Since(start), " chunk deser time:", chunkD)
 	return blobs, nil
 }
 
