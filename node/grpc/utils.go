@@ -120,6 +120,8 @@ func GetBlobHeaderFromProto(h *pb.BlobHeader) (*core.BlobHeader, error) {
 
 	}
 
+	start := time.Now()
+
 	commitX := new(fp.Element).SetBytes(h.GetCommitment().GetX())
 	commitY := new(fp.Element).SetBytes(h.GetCommitment().GetY())
 	commitment := &encoding.G1Commitment{
@@ -130,6 +132,9 @@ func GetBlobHeaderFromProto(h *pb.BlobHeader) (*core.BlobHeader, error) {
 	if !(*bn254.G1Affine)(commitment).IsInSubGroup() {
 		return nil, errors.New("commitment is not in the subgroup")
 	}
+
+	fmt.Println("XXX G1 deser time:", time.Since(start))
+	start = time.Now()
 
 	var lengthCommitment, lengthProof encoding.G2Commitment
 	if h.GetLengthCommitment() != nil {
@@ -143,6 +148,9 @@ func GetBlobHeaderFromProto(h *pb.BlobHeader) (*core.BlobHeader, error) {
 		return nil, errors.New("lengthCommitment is not in the subgroup")
 	}
 
+	fmt.Println("XXX G2 deser time:", time.Since(start))
+	start = time.Now()
+
 	if h.GetLengthProof() != nil {
 		lengthProof.X.A0 = *new(fp.Element).SetBytes(h.GetLengthProof().GetXA0())
 		lengthProof.X.A1 = *new(fp.Element).SetBytes(h.GetLengthProof().GetXA1())
@@ -153,6 +161,9 @@ func GetBlobHeaderFromProto(h *pb.BlobHeader) (*core.BlobHeader, error) {
 	if !(*bn254.G2Affine)(&lengthProof).IsInSubGroup() {
 		return nil, errors.New("lengthProof is not in the subgroup")
 	}
+
+	fmt.Println("XXX LengthProof deser time:", time.Since(start))
+	start = time.Now()
 
 	quorumHeaders := make([]*core.BlobQuorumInfo, len(h.GetQuorumHeaders()))
 	for i, header := range h.GetQuorumHeaders() {
@@ -173,6 +184,7 @@ func GetBlobHeaderFromProto(h *pb.BlobHeader) (*core.BlobHeader, error) {
 			ChunkLength: uint(header.GetChunkLength()),
 		}
 	}
+	fmt.Println("XXX quorumHeader deser time:", time.Since(start))
 
 	return &core.BlobHeader{
 		BlobCommitments: encoding.BlobCommitments{
