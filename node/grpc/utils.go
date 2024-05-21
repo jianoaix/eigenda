@@ -38,9 +38,11 @@ func GetBatchHeader(in *pb.StoreChunksRequest) (*core.BatchHeader, error) {
 func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 	blobs := make([]*core.BlobMessage, len(in.GetBlobs()))
 	start := time.Now()
-	var chunkD time.Duration
+	var headerD, chunkD time.Duration
 	for i, blob := range in.GetBlobs() {
+		headerStart := time.Now()
 		blobHeader, err := GetBlobHeaderFromProto(blob.GetHeader())
+		headerD += time.Since(headerStart)
 
 		if err != nil {
 			return nil, err
@@ -69,7 +71,7 @@ func GetBlobMessages(in *pb.StoreChunksRequest) ([]*core.BlobMessage, error) {
 			Bundles:    bundles,
 		}
 	}
-	fmt.Println("XXX total time:", time.Since(start), " chunk deser time:", chunkD)
+	fmt.Println("XXX total time:", time.Since(start), " chunk deser time:", chunkD, "header deser time:", headerD)
 	return blobs, nil
 }
 
