@@ -140,8 +140,14 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 		}
 	}
 
+	serializedRequestData, err := proto.Marshal(request)
+	if err != nil {
+		fmt.Println("xdeb err to serialize request:", err)
+		return nil, err
+	}
+
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
-	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize", packedSize, "batch header size", proto.Size(request.BatchHeader), "serialized blob size in request:", serializedBlobSize, "serialized protobufe size", proto.Size(request))
+	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize", packedSize, "batch header size", proto.Size(request.BatchHeader), "serialized blob size in request:", serializedBlobSize, "serialized protobufe size", proto.Size(request), "actual serialized request size:", len(serializedRequestData))
 	reply, err := gc.StoreChunks(ctx, request, opt)
 
 	if err != nil {
@@ -227,6 +233,7 @@ func PackBlobs(blobs []*core.BlobMessage) int64 {
 						fmt.Println("xdeb: packing error:", err)
 						return 0
 					}
+					fmt.Println("xdeb: encoded sysmbol size:", len(bs))
 					size += int64(len(bs))
 				}
 			}
