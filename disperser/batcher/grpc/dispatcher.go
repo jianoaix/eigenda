@@ -133,8 +133,15 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	}
 	packedSize := PackBlobs(blobs)
 
+	serializedBlobSize := 0
+	for _, blob := range request.GetBlobs() {
+		for _, chunks := range blob.GetBundles() {
+			serializedBlobSize += proto.Size(chunks)
+		}
+	}
+
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
-	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize", packedSize, "serialized protobufe size", proto.Size(request))
+	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize", packedSize, "batch header size", proto.Size(request.BatchHeader), "serialized blob size in request:", serializedBlobSize, "serialized protobufe size", proto.Size(request))
 	reply, err := gc.StoreChunks(ctx, request, opt)
 
 	if err != nil {
@@ -208,21 +215,16 @@ func PackUint64s(data []uint64) ([]byte, error) {
 
 func PackBlobs(blobs []*core.BlobMessage) int64 {
 	size := int64(0)
+	numSyms := 0
 	for _, blob := range blobs {
-		numSym := 0
 		for _, bundle := range blob.Bundles {
 			for _, frame := range bundle {
-				numSym += 4 * len(frame.Coeffs)
-			}
-		}
-
-		for _, bundle := range blob.Bundles {
-			for _, frame := range bundle {
+				numSyms += len(frame.Coeffs)
 				for _, coeff := range frame.Coeffs {
 					// coeff is [4]uint64
 					bs, err := PackUint64s(coeff[:])
 					if err != nil {
-						fmt.Println("Xdeb: packing error:", err)
+						fmt.Println("xdeb: packing error:", err)
 						return 0
 					}
 					size += int64(len(bs))
@@ -230,7 +232,7 @@ func PackBlobs(blobs []*core.BlobMessage) int64 {
 			}
 		}
 	}
-	fmt.Println("Xdeb: size:", size)
+	fmt.Println("xdeb: size:", size, " num sysmbols:", numSyms)
 	return size
 }
 
