@@ -1,8 +1,10 @@
 package dispatcher
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	commonpb "github.com/Layr-Labs/eigenda/api/grpc/common"
@@ -130,8 +132,10 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 		return nil, err
 	}
 
+	packedSize := PackBlobs(blobs)
+
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
-	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "request message size", proto.Size(request))
+	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize:", packedSize, "request message size", proto.Size(request))
 	reply, err := gc.StoreChunks(ctx, request, opt)
 
 	if err != nil {
@@ -145,6 +149,70 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	}
 	sig := &core.Signature{G1Point: point}
 	return sig, nil
+}
+
+// EncodeVarint encodes an unsigned integer using varint encoding
+func EncodeVarint(value uint64) ([]byte, error) {
+	var buffer bytes.Buffer
+	for {
+		if value < 128 {
+			buffer.WriteByte(byte(value))
+			return buffer.Bytes(), nil
+		}
+		buffer.WriteByte(byte(value&0x7F | 0x80)) // Set MSB for continuation
+		value >>= 7
+	}
+}
+
+// PackUint64s encodes a slice of uint64 into a byte buffer using packed encoding.
+func PackUint64s(data []uint64) ([]byte, error) {
+	var buffer bytes.Buffer
+
+	// Encode the number of elements (length prefix) using varint encoding
+	// encodedLength, err := EncodeVarint(uint64(len(data)))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// buffer.Write(encodedLength)
+
+	// Loop through each uint64 and encode it directly (no separators)
+	for _, value := range data {
+		encodedValue, err := EncodeVarint(value)
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(encodedValue)
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func PackBlobs(blobs []*core.BlobMessage) int64 {
+	size := int64(0)
+	for _, blob := range blobs {
+		numSym := 0
+		for _, bundle := range blob.Bundles {
+			for _, frame := range bundle {
+				numSym += 4 * len(frame.Coeffs)
+			}
+		}
+
+		for _, bundle := range blob.Bundles {
+			for _, frame := range bundle {
+				for _, coeff := range frame.Coeffs {
+					// coeff is [4]uint64
+					bs, err := PackUint64s(coeff[:])
+					if err != nil {
+						fmt.Println("Xdeb: packing error:", err)
+						return 0
+					}
+					size += int64(len(bs))
+				}
+			}
+		}
+	}
+	fmt.Println("Xdeb: size:", size)
+	return size
 }
 
 func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.BatchHeader) (*node.StoreChunksRequest, int64, error) {
