@@ -135,12 +135,12 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 
 	blobHeaderSize := 0
 	serializedBlobSize := 0
-	numChunks := 0
 	for _, blob := range request.GetBlobs() {
 		blobHeaderSize += proto.Size(blob.GetHeader())
+		// serializedBlobSize += proto.Size(blob.Bundles)
 		for _, chunks := range blob.GetBundles() {
 			serializedBlobSize += proto.Size(chunks)
-			numChunks += len(chunks.Chunks)
+			// numChunks += len(chunks.Chunks)
 		}
 	}
 
