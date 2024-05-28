@@ -233,7 +233,7 @@ func PackBlobs(blobs []*core.BlobMessage) int64 {
 						fmt.Println("xdeb: packing error:", err)
 						return 0
 					}
-					fmt.Println("xdeb: encoded sysmbol size:", len(bs))
+					// fmt.Println("xdeb: encoded sysmbol size:", len(bs))
 					size += int64(len(bs))
 				}
 			}

@@ -171,6 +171,7 @@ func (cb Bundles) Serialize() (map[uint32][][]byte, error) {
 	for quorumID, bundle := range cb {
 		for _, chunk := range bundle {
 			chunkData, err := chunk.Serialize()
+			fmt.Println("xdeb serialized size of chunk:", len(chunkData), " original size:", chunk.Size())
 			if err != nil {
 				return nil, err
 			}
