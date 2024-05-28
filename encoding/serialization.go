@@ -9,8 +9,57 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 )
 
+// EncodeVarint encodes an unsigned integer using varint encoding
+func EncodeVarint(value uint64) ([]byte, error) {
+	var buffer bytes.Buffer
+	for {
+		if value < 128 {
+			buffer.WriteByte(byte(value))
+			return buffer.Bytes(), nil
+		}
+		buffer.WriteByte(byte(value&0x7F | 0x80)) // Set MSB for continuation
+		value >>= 7
+	}
+}
+
+// PackUint64s encodes a slice of uint64 into a byte buffer using packed encoding.
+func PackUint64s(data []uint64) ([]byte, error) {
+	var buffer bytes.Buffer
+
+	// Encode the number of elements (length prefix) using varint encoding
+	// encodedLength, err := EncodeVarint(uint64(len(data)))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// buffer.Write(encodedLength)
+
+	// Loop through each uint64 and encode it directly (no separators)
+	for _, value := range data {
+		encodedValue, err := EncodeVarint(value)
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(encodedValue)
+	}
+
+	return buffer.Bytes(), nil
+}
+
 func (c *Frame) Serialize() ([]byte, error) {
-	return encode(c)
+	res, err := encode(c)
+	if err == nil {
+		packSize := 0
+		for _, coeff := range c.Coeffs {
+			bs, err := PackUint64s(coeff[:])
+			if err != nil {
+				fmt.Println("xdeb FAILED to pack")
+				return nil, err
+			}
+			packSize += len(bs)
+		}
+		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "num coeffs:", c.Length())
+	}
+	return res, err
 }
 
 func (c *Frame) Deserialize(data []byte) (*Frame, error) {
