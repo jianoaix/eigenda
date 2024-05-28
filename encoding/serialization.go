@@ -29,7 +29,9 @@ func (f *Frame) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	res := buf.Bytes()
+	fmt.Println("xdeb chunk serialization, ori size:", f.Size(), " serialized size:", len(res), "num coeffs:", f.Length())
+	return res, nil
 }
 
 func Decode(b []byte) (Frame, error) {
