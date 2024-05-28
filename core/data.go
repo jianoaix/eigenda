@@ -169,7 +169,8 @@ func (b Bundle) Size() uint64 {
 func (cb Bundles) Serialize() (map[uint32][][]byte, error) {
 	data := make(map[uint32][][]byte, len(cb))
 	numCoeffs := 0
-	serSize := 0
+	serSize := uint64(0)
+	oriSize := uint64(0)
 	for quorumID, bundle := range cb {
 		for _, chunk := range bundle {
 			chunkData, err := chunk.Serialize()
@@ -181,10 +182,11 @@ func (cb Bundles) Serialize() (map[uint32][][]byte, error) {
 				return nil, err
 			}
 			data[uint32(quorumID)] = append(data[uint32(quorumID)], chunkData)
-			serSize += len(chunkData)
+			serSize += uint64(len(chunkData))
+			oriSize += chunk.Size()
 		}
 	}
-	fmt.Println("xdeb in blob, num coeffs:", numCoeffs, " serialized size:", serSize)
+	fmt.Println("xdeb in blob, num coeffs:", numCoeffs, "oriSize:", oriSize, " serialized size:", serSize)
 	return data, nil
 }
 
