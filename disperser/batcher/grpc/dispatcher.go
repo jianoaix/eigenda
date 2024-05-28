@@ -133,10 +133,14 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	}
 	packedSize := PackBlobs(blobs)
 
+	blobHeaderSize := 0
 	serializedBlobSize := 0
+	numChunks := 0
 	for _, blob := range request.GetBlobs() {
+		blobHeaderSize += proto.Size(blob.GetHeader())
 		for _, chunks := range blob.GetBundles() {
 			serializedBlobSize += proto.Size(chunks)
+			numChunks += len(chunks.Chunks)
 		}
 	}
 
@@ -147,7 +151,9 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	}
 
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
-	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize", packedSize, "batch header size", proto.Size(request.BatchHeader), "serialized blob size in request:", serializedBlobSize, "serialized protobufe size", proto.Size(request), "actual serialized request size:", len(serializedRequestData))
+
+	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "packedSize", packedSize, "batch header size", proto.Size(request.BatchHeader), "blob header size:", blobHeaderSize, "total size of batch header and blob headers:", blobHeaderSize+proto.Size(request.BatchHeader), "serialized blob size in request:", serializedBlobSize, "serialized protobufe size", proto.Size(request), "actual serialized request size:", len(serializedRequestData))
+
 	reply, err := gc.StoreChunks(ctx, request, opt)
 
 	if err != nil {
