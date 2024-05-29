@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/golang/snappy"
 )
 
 // EncodeVarint encodes an unsigned integer using varint encoding
@@ -57,7 +58,8 @@ func (c *Frame) Serialize() ([]byte, error) {
 			}
 			packSize += len(bs)
 		}
-		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "num coeffs:", c.Length())
+		compressedGob := snappy.Encode(nil, res)
+		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "compressed gob", len(compressedGob), "num coeffs:", c.Length())
 	}
 	return res, err
 }
@@ -79,7 +81,8 @@ func (f *Frame) Encode() ([]byte, error) {
 		return nil, err
 	}
 	res := buf.Bytes()
-	fmt.Println("xdeb chunk serialization, ori size:", f.Size(), " serialized size:", len(res), "num coeffs:", f.Length())
+	compressedData := snappy.Encode(nil, res)
+	fmt.Println("xdeb chunk serialization, ori size:", f.Size(), " serialized size:", len(res), "compressed gob", len(compressedData), "num coeffs:", f.Length())
 	return res, nil
 }
 
