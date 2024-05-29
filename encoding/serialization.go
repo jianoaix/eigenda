@@ -2,6 +2,7 @@ package encoding
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -46,6 +47,25 @@ func PackUint64s(data []uint64) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+func compressWithGzip(data []byte) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := gzip.NewWriter(&buffer) // Create Gzip writer targeting the buffer
+
+	defer writer.Close() // Ensure proper closing
+
+	_, err := writer.Write(data) // Write data to the compressed stream
+	if err != nil {
+		return nil, err
+	}
+
+	err = writer.Flush() // Flush remaining data from the writer
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil // Return the compressed data as a byte slice
+}
+
 func (c *Frame) Serialize() ([]byte, error) {
 	res, err := encode(c)
 	if err == nil {
@@ -58,8 +78,12 @@ func (c *Frame) Serialize() ([]byte, error) {
 			}
 			packSize += len(bs)
 		}
-		compressedGob := snappy.Encode(nil, res)
-		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "compressed gob", len(compressedGob), "num coeffs:", c.Length())
+		compressedSnappy := snappy.Encode(nil, res)
+		compressedZip, cerr := compressWithGzip(res)
+		if cerr != nil {
+			return nil, cerr
+		}
+		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "compressed gob with snappy: ", len(compressedSnappy), "compressed gob with gzip: ", len(compressedZip), "num coeffs:", c.Length())
 	}
 	return res, err
 }
