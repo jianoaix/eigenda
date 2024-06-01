@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/golang/snappy"
@@ -70,7 +71,17 @@ func (c *Frame) Serialize() ([]byte, error) {
 	res, err := encode(c)
 	if err == nil {
 		packSize := 0
+		minV := uint64(math.MaxUint64)
+		maxV := uint64(0)
 		for _, coeff := range c.Coeffs {
+			for _, c := range coeff {
+				if minV > c {
+					minV = c
+				}
+				if maxV < c {
+					maxV = c
+				}
+			}
 			bs, err := PackUint64s(coeff[:])
 			if err != nil {
 				fmt.Println("xdeb FAILED to pack")
@@ -83,7 +94,7 @@ func (c *Frame) Serialize() ([]byte, error) {
 		if cerr != nil {
 			return nil, cerr
 		}
-		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "compressed gob with snappy: ", len(compressedSnappy), "compressed gob with gzip: ", len(compressedZip), "num coeffs:", c.Length())
+		fmt.Println("xdeb frame serialization, ori size:", c.Size(), " serialized size:", len(res), "packSize:", packSize, "compressed gob with snappy: ", len(compressedSnappy), "compressed gob with gzip: ", len(compressedZip), "gzip percentage", float64(len(compressedZip))/float64(len(res)), "minV:", minV, "maxV:", maxV, "val range percentage:", uint64(math.MaxUint64)/(maxV-minV), "num coeffs:", c.Length())
 	}
 	return res, err
 }
