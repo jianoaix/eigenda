@@ -37,6 +37,7 @@ func GetBatchHeader(in *pb.StoreChunksRequest) (*core.BatchHeader, error) {
 // interface, see grpc.Server.validateStoreChunkRequest.
 func GetBlobMessages(in *pb.StoreChunksRequest, numWorkers int) ([]*core.BlobMessage, error) {
 	blobs := make([]*core.BlobMessage, len(in.GetBlobs()))
+	fmt.Println("xdeb numWorkers:", numWorkers)
 	pool := workerpool.New(numWorkers)
 	resultChan := make(chan error, len(blobs))
 	for i, blob := range in.GetBlobs() {
