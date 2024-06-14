@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -220,7 +221,8 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 
 	// Generate key/value pairs for all blob headers and blob chunks .
 	size := int64(0)
-	var serializationDuration, encodingDuration time.Duration
+	rsize := int64(0)
+	var serializationDuration, encodingDuration, flatDuration time.Duration
 	for idx, blob := range blobs {
 		// blob header
 		blobHeaderKey, err := EncodeBlobHeaderKey(batchHeaderHash, idx)
@@ -246,9 +248,12 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 		for i, chunks := range rawBlob.GetBundles() {
 			quorumID := uint8(rawBlob.GetHeader().GetQuorumHeaders()[i].GetQuorumId())
 			rawChunks[quorumID] = make([][]byte, len(chunks.GetChunks()))
+			lsize := 0
 			for j, chunk := range chunks.GetChunks() {
 				rawChunks[quorumID][j] = chunk
+				lsize += len(rawChunks[quorumID][j])
 			}
+			fmt.Println("bytes in mem:", lsize, " msg size:", proto.Size(chunks))
 		}
 		serializationDuration += time.Since(start)
 		start = time.Now()
@@ -266,11 +271,14 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 			bundleRaw := make([][]byte, len(bundle))
 			for i := 0; i < len(bundle); i++ {
 				bundleRaw[i] = rawChunks[quorumID][i]
+				rsize += int64(len(bundleRaw[i]))
 			}
+			fstart := time.Now()
 			chunkBytes, err := encodeChunks(bundleRaw)
 			if err != nil {
 				return nil, err
 			}
+			flatDuration += time.Since(fstart)
 			size += int64(len(chunkBytes))
 
 			keys = append(keys, key)
@@ -286,7 +294,7 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 		log.Error("Failed to write the batch into local database:", "err", err)
 		return nil, err
 	}
-	log.Debug("StoreBatch succeeded", "chunk serialization duration", serializationDuration, "bytes encoding duration", encodingDuration, "write batch duration", time.Since(start), "total store batch duration", time.Since(storeBatchStart), "total bytes", size)
+	fmt.Println("StoreBatch succeeded", "chunk serialization duration", serializationDuration, "bytes encoding duration", encodingDuration, "flatten bytes duration", flatDuration, "write batch duration", time.Since(start), "total store batch duration", time.Since(storeBatchStart), "total bytes", size, "r total bytes:", rsize)
 
 	return &keys, nil
 }
@@ -360,7 +368,13 @@ func (s *Store) DeleteKeys(ctx context.Context, keys *[][]byte) error {
 //
 // encodeChunks(chunks) = (len(chunks[0]), chunks[0], len(chunks[1]), chunks[1], ...)
 func encodeChunks(chunks [][]byte) ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0))
+	totalSize := 0
+	for _, chunk := range chunks {
+		totalSize += len(chunk) + 8 // Add size of uint64 for length
+	}
+	fmt.Println("XX num chunks to encode:", len(chunks), "total size", totalSize)
+	buf := bytes.NewBuffer(make([]byte, 0, totalSize))
+	size := 0
 	for _, chunk := range chunks {
 		if err := binary.Write(buf, binary.LittleEndian, uint64(len(chunk))); err != nil {
 			return nil, err
@@ -368,8 +382,11 @@ func encodeChunks(chunks [][]byte) ([]byte, error) {
 		if _, err := buf.Write(chunk); err != nil {
 			return nil, err
 		}
+		size += len(chunk)
 	}
-	return buf.Bytes(), nil
+	res := buf.Bytes()
+	fmt.Println("XX size:", size, "result size:", len(res))
+	return res, nil
 }
 
 // Converts a flattened array of chunks into an array of its constituent chunks,
