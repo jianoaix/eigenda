@@ -373,7 +373,7 @@ func encodeChunks(chunks [][]byte) ([]byte, error) {
 		totalSize += len(chunk) + 8 // Add size of uint64 for length
 	}
 	fmt.Println("XX num chunks to encode:", len(chunks), "total size", totalSize)
-	buf := bytes.NewBuffer(make([]byte, 0, totalSize))
+	buf := bytes.NewBuffer(make([]byte, 0))
 	size := 0
 	for _, chunk := range chunks {
 		if err := binary.Write(buf, binary.LittleEndian, uint64(len(chunk))); err != nil {
