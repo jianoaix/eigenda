@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/Layr-Labs/eigenda/api/grpc/node"
@@ -14,6 +15,7 @@ import (
 	"github.com/Layr-Labs/eigenda/node/leveldb"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/gammazero/workerpool"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -223,68 +225,97 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 	size := int64(0)
 	rsize := int64(0)
 	var serializationDuration, encodingDuration, flatDuration time.Duration
+	var mu sync.Mutex
+	pool := workerpool.New(32)
+	resultChan := make(chan error, len(blobs))
 	for idx, blob := range blobs {
-		// blob header
-		blobHeaderKey, err := EncodeBlobHeaderKey(batchHeaderHash, idx)
+		idx := idx
+		blob := blob
+		pool.Submit(func() {
+			blobKeys := make([][]byte, 0)
+			blobValues := make([][]byte, 0)
+			// blob header
+			blobHeaderKey, err := EncodeBlobHeaderKey(batchHeaderHash, idx)
+			if err != nil {
+				log.Error("Cannot generate the key for storing blob header:", "err", err)
+				resultChan <- err
+				return
+			}
+			blobHeaderBytes, err := proto.Marshal(blobsProto[idx].GetHeader())
+			if err != nil {
+				log.Error("Cannot serialize the blob header proto:", "err", err)
+				resultChan <- err
+				return
+			}
+			blobKeys = append(blobKeys, blobHeaderKey)
+			blobValues = append(blobValues, blobHeaderBytes)
+
+			// Get raw chunks
+			start := time.Now()
+			rawBlob := blobsProto[idx]
+			if len(rawBlob.GetBundles()) != len(blob.Bundles) {
+				resultChan <- errors.New("internal error: the number of bundles in parsed blob must be the same as in raw blob")
+				return
+			}
+			rawChunks := make(map[core.QuorumID][][]byte)
+			for i, chunks := range rawBlob.GetBundles() {
+				quorumID := uint8(rawBlob.GetHeader().GetQuorumHeaders()[i].GetQuorumId())
+				rawChunks[quorumID] = make([][]byte, len(chunks.GetChunks()))
+				lsize := 0
+				for j, chunk := range chunks.GetChunks() {
+					rawChunks[quorumID][j] = chunk
+					lsize += len(rawChunks[quorumID][j])
+				}
+				fmt.Println("bytes in mem:", lsize, " msg size:", proto.Size(chunks))
+			}
+			serializationDuration += time.Since(start)
+			start = time.Now()
+			// blob chunks
+			for quorumID, bundle := range blob.Bundles {
+				key, err := EncodeBlobKey(batchHeaderHash, idx, quorumID)
+				if err != nil {
+					log.Error("Cannot generate the key for storing blob:", "err", err)
+					resultChan <- err
+					return
+				}
+				if len(rawChunks[quorumID]) != len(bundle) {
+					resultChan <- errors.New("internal error: the number of chunks in parsed blob bundle must be the same as in raw blob bundle")
+					return
+				}
+
+				bundleRaw := make([][]byte, len(bundle))
+				for i := 0; i < len(bundle); i++ {
+					bundleRaw[i] = rawChunks[quorumID][i]
+					rsize += int64(len(bundleRaw[i]))
+				}
+				fstart := time.Now()
+				chunkBytes, err := encodeChunks(bundleRaw)
+				if err != nil {
+					resultChan <- err
+					return
+				}
+				flatDuration += time.Since(fstart)
+				size += int64(len(chunkBytes))
+
+				blobKeys = append(blobKeys, key)
+				blobValues = append(blobValues, chunkBytes)
+			}
+			mu.Lock()
+			for i := range blobKeys {
+				keys = append(keys, blobKeys[i])
+				values = append(values, blobValues[i])
+			}
+			mu.Unlock()
+			encodingDuration += time.Since(start)
+			resultChan <- nil
+		})
+	}
+	pool.StopWait()
+	close(resultChan)
+	for err := range resultChan {
 		if err != nil {
-			log.Error("Cannot generate the key for storing blob header:", "err", err)
 			return nil, err
 		}
-		blobHeaderBytes, err := proto.Marshal(blobsProto[idx].GetHeader())
-		if err != nil {
-			log.Error("Cannot serialize the blob header proto:", "err", err)
-			return nil, err
-		}
-		keys = append(keys, blobHeaderKey)
-		values = append(values, blobHeaderBytes)
-
-		// Get raw chunks
-		start := time.Now()
-		rawBlob := blobsProto[idx]
-		if len(rawBlob.GetBundles()) != len(blob.Bundles) {
-			return nil, errors.New("internal error: the number of bundles in parsed blob must be the same as in raw blob")
-		}
-		rawChunks := make(map[core.QuorumID][][]byte)
-		for i, chunks := range rawBlob.GetBundles() {
-			quorumID := uint8(rawBlob.GetHeader().GetQuorumHeaders()[i].GetQuorumId())
-			rawChunks[quorumID] = make([][]byte, len(chunks.GetChunks()))
-			lsize := 0
-			for j, chunk := range chunks.GetChunks() {
-				rawChunks[quorumID][j] = chunk
-				lsize += len(rawChunks[quorumID][j])
-			}
-			fmt.Println("bytes in mem:", lsize, " msg size:", proto.Size(chunks))
-		}
-		serializationDuration += time.Since(start)
-		start = time.Now()
-		// blob chunks
-		for quorumID, bundle := range blob.Bundles {
-			key, err := EncodeBlobKey(batchHeaderHash, idx, quorumID)
-			if err != nil {
-				log.Error("Cannot generate the key for storing blob:", "err", err)
-				return nil, err
-			}
-			if len(rawChunks[quorumID]) != len(bundle) {
-				return nil, errors.New("internal error: the number of chunks in parsed blob bundle must be the same as in raw blob bundle")
-			}
-
-			bundleRaw := make([][]byte, len(bundle))
-			for i := 0; i < len(bundle); i++ {
-				bundleRaw[i] = rawChunks[quorumID][i]
-				rsize += int64(len(bundleRaw[i]))
-			}
-			fstart := time.Now()
-			chunkBytes, err := encodeChunks(bundleRaw)
-			if err != nil {
-				return nil, err
-			}
-			flatDuration += time.Since(fstart)
-			size += int64(len(chunkBytes))
-
-			keys = append(keys, key)
-			values = append(values, chunkBytes)
-		}
-		encodingDuration += time.Since(start)
 	}
 
 	start := time.Now()
@@ -373,7 +404,7 @@ func encodeChunks(chunks [][]byte) ([]byte, error) {
 		totalSize += len(chunk) + 8 // Add size of uint64 for length
 	}
 	fmt.Println("XX num chunks to encode:", len(chunks), "total size", totalSize)
-	buf := bytes.NewBuffer(make([]byte, 0))
+	buf := bytes.NewBuffer(make([]byte, totalSize))
 	size := 0
 	for _, chunk := range chunks {
 		if err := binary.Write(buf, binary.LittleEndian, uint64(len(chunk))); err != nil {
