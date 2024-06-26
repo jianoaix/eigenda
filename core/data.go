@@ -6,6 +6,7 @@ import (
 
 	"github.com/Layr-Labs/eigenda/common"
 	"github.com/Layr-Labs/eigenda/encoding"
+	"github.com/klauspost/compress/zstd"
 )
 
 type AccountID = string
@@ -174,6 +175,13 @@ func (cb Bundles) Serialize() (map[uint32][][]byte, error) {
 			if err != nil {
 				return nil, err
 			}
+			chunkGnark, err := chunk.SerializeGnark()
+			if err != nil {
+				return nil, err
+			}
+			ec, _ := zstd.NewWriter(nil)
+			gnarkCompressed := ec.EncodeAll(chunkGnark, nil)
+			fmt.Println("XDEB chunk len:", len(chunk.Coeffs), " chunk data size with gob:", len(chunkData), " chunk data size with gnark:", len(chunkGnark), "chunk data size with gnark and zstd:", len(gnarkCompressed))
 			data[uint32(quorumID)] = append(data[uint32(quorumID)], chunkData)
 		}
 	}
