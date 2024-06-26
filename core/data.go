@@ -1,11 +1,14 @@
 package core
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 
 	"github.com/Layr-Labs/eigenda/common"
 	"github.com/Layr-Labs/eigenda/encoding"
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -166,25 +169,54 @@ func (b Bundle) Size() uint64 {
 	return size
 }
 
+func compressWithGzip(data []byte) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := gzip.NewWriter(&buffer) // Create Gzip writer targeting the buffer
+
+	defer writer.Close() // Ensure proper closing
+
+	_, err := writer.Write(data) // Write data to the compressed stream
+	if err != nil {
+		return nil, err
+	}
+
+	err = writer.Flush() // Flush remaining data from the writer
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil // Return the compressed data as a byte slice
+}
+
 // Serialize encodes a batch of chunks into a byte array
 func (cb Bundles) Serialize() (map[uint32][][]byte, error) {
 	data := make(map[uint32][][]byte, len(cb))
+	gobSize := 0
+	gnarkBytes := make([]byte, 0)
 	for quorumID, bundle := range cb {
 		for _, chunk := range bundle {
 			chunkData, err := chunk.Serialize()
 			if err != nil {
 				return nil, err
 			}
+			gobSize += len(chunkData)
 			chunkGnark, err := chunk.SerializeGnark()
 			if err != nil {
 				return nil, err
 			}
+			gnarkBytes = append(gnarkBytes, chunkGnark...)
 			ec, _ := zstd.NewWriter(nil)
 			gnarkCompressed := ec.EncodeAll(chunkGnark, nil)
 			fmt.Println("XDEB chunk len:", len(chunk.Coeffs), " chunk data size with gob:", len(chunkData), " chunk data size with gnark:", len(chunkGnark), "chunk data size with gnark and zstd:", len(gnarkCompressed))
 			data[uint32(quorumID)] = append(data[uint32(quorumID)], chunkData)
 		}
 	}
+	ec, _ := zstd.NewWriter(nil)
+	compressedZstd := ec.EncodeAll(gnarkBytes, nil)
+	compressedSnappy := snappy.Encode(nil, gnarkBytes)
+	compressedZip, _ := compressWithGzip(gnarkBytes)
+	fmt.Println("XDEB bundle's gnark bytes:", len(gnarkBytes), " zstd compressed:", len(compressedZstd), " snappy compressed:", len(compressedSnappy), " gzip compressed:", len(compressedZip))
+
 	return data, nil
 }
 
