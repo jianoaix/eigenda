@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	commonpb "github.com/Layr-Labs/eigenda/api/grpc/common"
@@ -129,6 +130,20 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	if err != nil {
 		return nil, err
 	}
+
+	start := time.Now()
+	data, err := proto.Marshal(request)
+	if err != nil {
+		c.logger.Fatalf("Failed to serialize: %v", err)
+	}
+	fmt.Println("XDEB request seriazalition duration:", time.Since(start))
+
+	start = time.Now()
+	var newReq node.StoreChunksRequest
+	if err := proto.Unmarshal(data, &newReq); err != nil {
+		c.logger.Fatalf("Failed to deserialize: %v", err)
+	}
+	fmt.Println("XDEB request derser duration:", time.Since(start))
 
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
 	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "request message size", proto.Size(request))
