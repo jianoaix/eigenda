@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -93,7 +92,7 @@ func UnaryInterceptor(
 
 	// Log the time taken
 	duration := time.Since(start)
-	log.Printf("XDEB gRPC overhead for method %s: %v", info.FullMethod, duration)
+	fmt.Printf("XDEB gRPC overhead for method %s: %v", info.FullMethod, duration)
 
 	return h, err
 }
