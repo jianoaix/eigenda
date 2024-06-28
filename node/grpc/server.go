@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -79,6 +80,24 @@ func (s *Server) Start() {
 	}()
 }
 
+func UnaryInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (resp interface{}, err error) {
+	start := time.Now()
+
+	// Call the handler to proceed with normal execution
+	h, err := handler(ctx, req)
+
+	// Log the time taken
+	duration := time.Since(start)
+	log.Printf("XDEB gRPC overhead for method %s: %v", info.FullMethod, duration)
+
+	return h, err
+}
+
 func (s *Server) serveDispersal() error {
 
 	addr := fmt.Sprintf("%s:%s", localhost, s.config.InternalDispersalPort)
@@ -88,7 +107,7 @@ func (s *Server) serveDispersal() error {
 	}
 
 	opt := grpc.MaxRecvMsgSize(60 * 1024 * 1024 * 1024) // 60 GiB
-	gs := grpc.NewServer(opt)
+	gs := grpc.NewServer(grpc.UnaryInterceptor(UnaryInterceptor), opt)
 
 	// Register reflection service on gRPC server
 	// This makes "grpcurl -plaintext localhost:9000 list" command work
