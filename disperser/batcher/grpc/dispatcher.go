@@ -136,14 +136,14 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	if err != nil {
 		c.logger.Fatalf("Failed to serialize: %v", err)
 	}
-	fmt.Println("XDEB request seriazalition duration:", time.Since(start))
+	fmt.Println("XDEB request seriazalition duration:", time.Since(start), " num blobs:", len(request.Blobs), " size bytes:", len(data))
 
 	start = time.Now()
 	var newReq node.StoreChunksRequest
 	if err := proto.Unmarshal(data, &newReq); err != nil {
 		c.logger.Fatalf("Failed to deserialize: %v", err)
 	}
-	fmt.Println("XDEB request derser duration:", time.Since(start))
+	fmt.Println("XDEB request derser duration:", time.Since(start), " num blobs:", len(newReq.Blobs), " req size bytes:", len(data))
 
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
 	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "size", totalSize, "request message size", proto.Size(request))
