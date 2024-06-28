@@ -131,12 +131,21 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 		return nil, err
 	}
 
+	numChunks := make([]int, 0)
+	for _, blob := range request.Blobs {
+		num := 0
+		for _, b := range blob.Bundles {
+			num += len(b.Chunks)
+		}
+		numChunks = append(numChunks, num)
+	}
+
 	start := time.Now()
 	data, err := proto.Marshal(request)
 	if err != nil {
 		c.logger.Fatalf("Failed to serialize: %v", err)
 	}
-	fmt.Println("XDEB request seriazalition duration:", time.Since(start), " num blobs:", len(request.Blobs), " size bytes:", len(data))
+	fmt.Println("XDEB request seriazalition duration:", time.Since(start), " num blobs:", len(request.Blobs), " size bytes:", len(data), "num chunks:", numChunks)
 
 	start = time.Now()
 	var newReq node.StoreChunksRequest
