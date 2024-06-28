@@ -105,8 +105,11 @@ func (s *Server) serveDispersal() error {
 		s.logger.Fatalf("Could not start tcp listener: %v", err)
 	}
 
-	opt := grpc.MaxRecvMsgSize(60 * 1024 * 1024 * 1024) // 60 GiB
-	gs := grpc.NewServer(grpc.UnaryInterceptor(UnaryInterceptor), opt)
+	opt := []grpc.ServerOption{
+		grpc.UnaryInterceptor(UnaryInterceptor),
+		grpc.MaxRecvMsgSize(60 * 1024 * 1024 * 1024), // 60 GiB
+	}
+	gs := grpc.NewServer(opt...)
 
 	// Register reflection service on gRPC server
 	// This makes "grpcurl -plaintext localhost:9000 list" command work
