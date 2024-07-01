@@ -183,7 +183,7 @@ func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.B
 		}
 		totalSize += int64(blob.Bundles.Size())
 	}
-	fmt.Println("XDEB serialization time:", time.Since(start))
+	fmt.Println("XDEB serialization time:", time.Since(start), " num blobs:", len(blobMessages), " total size:", totalSize)
 
 	request := &node.StoreChunksRequest{
 		BatchHeader: getBatchHeaderMessage(batchHeader),
@@ -242,6 +242,7 @@ func getBlobMessage(blob *core.BlobMessage) (*node.Blob, error) {
 			bundles[i] = &node.Bundle{
 				Chunks: data[quorum],
 			}
+			fmt.Println("XDEB num chunks:", len(data[quorum]), " quorum:", quorum)
 		} else {
 			bundles[i] = &node.Bundle{
 				// empty bundle for quorums operators are not part of
