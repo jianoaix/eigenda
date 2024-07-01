@@ -174,6 +174,7 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.BatchHeader) (*node.StoreChunksRequest, int64, error) {
 	blobs := make([]*node.Blob, len(blobMessages))
 	totalSize := int64(0)
+	start := time.Now()
 	for i, blob := range blobMessages {
 		var err error
 		blobs[i], err = getBlobMessage(blob)
@@ -182,6 +183,7 @@ func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.B
 		}
 		totalSize += int64(blob.Bundles.Size())
 	}
+	fmt.Println("XDEB serialization time:", time.Since(start))
 
 	request := &node.StoreChunksRequest{
 		BatchHeader: getBatchHeaderMessage(batchHeader),
