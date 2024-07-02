@@ -10,7 +10,42 @@ import (
 	"github.com/Layr-Labs/eigenda/encoding"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
+
+func getServiceEndpoints(serviceName, namespace string) ([]string, error) {
+	// Create the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the endpoints
+	endpoints, err := clientset.CoreV1().Endpoints(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var addresses []string
+	for _, subset := range endpoints.Subsets {
+		for _, address := range subset.Addresses {
+			addresses = append(addresses, address.IP)
+		}
+	}
+
+	return addresses, nil
+}
 
 type client struct {
 	addr    string
@@ -25,6 +60,13 @@ func NewEncoderClient(addr string, timeout time.Duration) (disperser.EncoderClie
 }
 
 func (c client) EncodeBlob(ctx context.Context, data []byte, encodingParams encoding.EncodingParams) (*encoding.BlobCommitments, []*encoding.Frame, error) {
+	epts, err := getServiceEndpoints("encoder", "encoder")
+	if err != nil {
+		fmt.Println("XDEB service endpints err", err)
+	} else {
+		fmt.Println("XDEB service endpoints:", epts)
+	}
+
 	conn, err := grpc.Dial(
 		c.addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
