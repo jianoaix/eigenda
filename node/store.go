@@ -262,18 +262,24 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 				return nil, errors.New("internal error: the number of chunks in parsed blob bundle must be the same as in raw blob bundle")
 			}
 
-			bundleRaw := make([][]byte, len(bundle))
 			for i := 0; i < len(bundle); i++ {
-				bundleRaw[i] = rawChunks[quorumID][i]
+				keys = append(keys, key)
+				values = append(values, rawChunks[quorumID][i])
+				size += int64(len(rawChunks[quorumID][i]))
 			}
-			chunkBytes, err := EncodeChunks(bundleRaw)
-			if err != nil {
-				return nil, err
-			}
-			size += int64(len(chunkBytes))
 
-			keys = append(keys, key)
-			values = append(values, chunkBytes)
+			// bundleRaw := make([][]byte, len(bundle))
+			// for i := 0; i < len(bundle); i++ {
+			// 	bundleRaw[i] = rawChunks[quorumID][i]
+			// }
+			// chunkBytes, err := EncodeChunks(bundleRaw)
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// size += int64(len(chunkBytes))
+
+			// keys = append(keys, key)
+			// values = append(values, chunkBytes)
 		}
 		encodingDuration += time.Since(start)
 	}
