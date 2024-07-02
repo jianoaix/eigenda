@@ -59,6 +59,8 @@ func (c client) EncodeBlob(ctx context.Context, data []byte, encodingParams enco
 	if err != nil {
 		return nil, nil, err
 	}
+
+	start := time.Now()
 	chunks := make([]*encoding.Frame, len(reply.GetChunks()))
 	for i, chunk := range reply.GetChunks() {
 		deserialized, err := new(encoding.Frame).Deserialize(chunk)
@@ -67,6 +69,7 @@ func (c client) EncodeBlob(ctx context.Context, data []byte, encodingParams enco
 		}
 		chunks[i] = deserialized
 	}
+	fmt.Println("XDEB deserialize chunks from encoder time:", time.Since(start))
 	return &encoding.BlobCommitments{
 		Commitment:       commitment,
 		LengthCommitment: lengthCommitment,
