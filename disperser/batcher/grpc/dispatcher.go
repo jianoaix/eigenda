@@ -242,7 +242,7 @@ func getBlobMessage(blob *core.BlobMessage) (*node.Blob, error) {
 			bundles[i] = &node.Bundle{
 				Chunks: data[quorum],
 			}
-			fmt.Println("XDEB num chunks:", len(data[quorum]), " quorum:", quorum)
+			// fmt.Println("XDEB num chunks:", len(data[quorum]), " quorum:", quorum)
 		} else {
 			bundles[i] = &node.Bundle{
 				// empty bundle for quorums operators are not part of
