@@ -257,6 +257,7 @@ func (g *Metrics) collectOnchainMetrics() {
 				return operatorStakeShares[i].stakeShare > operatorStakeShares[j].stakeShare
 			})
 			for i, op := range operatorStakeShares {
+				fmt.Println("rank:", i+1, "operatorId: ", op, "quorumId: ", q, "stakeShare: ", op.stakeShare)
 				if op.operatorId == g.operatorId {
 					g.allQuorumCache[q] = true
 					g.RegisteredQuorumsStakeShare.WithLabelValues(fmt.Sprintf("%d", q)).Set(op.stakeShare)
