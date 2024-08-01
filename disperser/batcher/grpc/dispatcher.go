@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/disperser/batcher"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/gammazero/workerpool"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,8 +20,9 @@ import (
 )
 
 type Config struct {
-	Timeout                   time.Duration
-	EnableGnarkBundleEncoding bool
+	Timeout                        time.Duration
+	EnableGnarkBundleEncoding      bool
+	NumRequestSerializationWorkers int
 }
 
 type dispatcher struct {
@@ -128,7 +130,7 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
 	start := time.Now()
-	request, totalSize, err := GetStoreChunksRequest(blobs, batchHeader, c.EnableGnarkBundleEncoding)
+	request, totalSize, err := GetStoreChunksRequest(blobs, batchHeader, c.NumRequestSerializationWorkers, c.EnableGnarkBundleEncoding)
 	if err != nil {
 		return nil, err
 	}
@@ -280,16 +282,27 @@ func (c *dispatcher) SendAttestBatchRequest(ctx context.Context, nodeDispersalCl
 	return &core.Signature{G1Point: point}, nil
 }
 
-func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.BatchHeader, useGnarkBundleEncoding bool) (*node.StoreChunksRequest, int64, error) {
+func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.BatchHeader, numWorkers int, useGnarkBundleEncoding bool) (*node.StoreChunksRequest, int64, error) {
 	blobs := make([]*node.Blob, len(blobMessages))
 	totalSize := int64(0)
+	pool := workerpool.New(numWorkers)
+	resultChan := make(chan error, len(blobs))
 	for i, blob := range blobMessages {
-		var err error
-		blobs[i], err = getBlobMessage(blob, useGnarkBundleEncoding)
+		i := i
+		blob := blob
+		pool.Submit(func() {
+			b, err := getBlobMessage(blob, useGnarkBundleEncoding)
+			blobs[i] = b
+			resultChan <- err
+		})
+		totalSize += int64(blob.Bundles.Size())
+	}
+	pool.StopWait()
+	close(resultChan)
+	for err := range resultChan {
 		if err != nil {
 			return nil, 0, err
 		}
-		totalSize += int64(blob.Bundles.Size())
 	}
 
 	request := &node.StoreChunksRequest{

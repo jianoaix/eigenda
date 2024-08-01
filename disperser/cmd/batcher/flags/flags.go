@@ -199,6 +199,13 @@ var (
 		Required: false,
 		EnvVar:   common.PrefixEnvVar(envVarPrefix, "ENABLE_GNARK_BUNDLE_ENCODING"),
 	}
+	NumRequestSerializationWorkersFlag = cli.IntFlag{
+		Name:     "num-request-serialization-workers",
+		Usage:    "maximum number of work threads to serialize the dispersal request (defaults to 64)",
+		Required: false,
+		EnvVar:   common.PrefixEnvVar(envVarPrefix, "NUM_REQUEST_SERIALIZATION_WORKERS"),
+		Value:    64,
+	}
 	// EnableMinibatchFlag is a flag to enable minibatch processing
 	// Defaults to false
 	EnableMinibatchFlag = cli.BoolFlag{

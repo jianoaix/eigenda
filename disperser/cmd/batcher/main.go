@@ -99,8 +99,9 @@ func RunBatcher(ctx *cli.Context) error {
 	metrics := batcher.NewMetrics(config.MetricsConfig.HTTPPort, logger)
 
 	dispatcher := dispatcher.NewDispatcher(&dispatcher.Config{
-		Timeout:                   config.TimeoutConfig.AttestationTimeout,
-		EnableGnarkBundleEncoding: config.EnableGnarkBundleEncoding,
+		Timeout:                        config.TimeoutConfig.AttestationTimeout,
+		EnableGnarkBundleEncoding:      config.EnableGnarkBundleEncoding,
+		NumRequestSerializationWorkers: config.NumRequestSerializationWorkers,
 	}, logger, metrics.DispatcherMetrics)
 	asgn := &core.StdAssignmentCoordinator{}
 

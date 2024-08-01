@@ -34,7 +34,8 @@ type Config struct {
 
 	EnableMinibatch bool
 
-	EnableGnarkBundleEncoding bool
+	EnableGnarkBundleEncoding      bool
+	NumRequestSerializationWorkers int
 }
 
 func NewConfig(ctx *cli.Context) (Config, error) {
@@ -82,15 +83,16 @@ func NewConfig(ctx *cli.Context) (Config, error) {
 			HTTPPort:      ctx.GlobalString(flags.MetricsHTTPPort.Name),
 			EnableMetrics: ctx.GlobalBool(flags.EnableMetrics.Name),
 		},
-		ChainStateConfig:              thegraph.ReadCLIConfig(ctx),
-		UseGraph:                      ctx.Bool(flags.UseGraphFlag.Name),
-		BLSOperatorStateRetrieverAddr: ctx.GlobalString(flags.BlsOperatorStateRetrieverFlag.Name),
-		EigenDAServiceManagerAddr:     ctx.GlobalString(flags.EigenDAServiceManagerFlag.Name),
-		IndexerDataDir:                ctx.GlobalString(flags.IndexerDataDirFlag.Name),
-		IndexerConfig:                 indexer.ReadIndexerConfig(ctx),
-		KMSKeyConfig:                  kmsConfig,
-		EnableMinibatch:               ctx.Bool(flags.EnableMinibatchFlag.Name),
-		EnableGnarkBundleEncoding:     ctx.Bool(flags.EnableGnarkBundleEncodingFlag.Name),
+		ChainStateConfig:               thegraph.ReadCLIConfig(ctx),
+		UseGraph:                       ctx.Bool(flags.UseGraphFlag.Name),
+		BLSOperatorStateRetrieverAddr:  ctx.GlobalString(flags.BlsOperatorStateRetrieverFlag.Name),
+		EigenDAServiceManagerAddr:      ctx.GlobalString(flags.EigenDAServiceManagerFlag.Name),
+		IndexerDataDir:                 ctx.GlobalString(flags.IndexerDataDirFlag.Name),
+		IndexerConfig:                  indexer.ReadIndexerConfig(ctx),
+		KMSKeyConfig:                   kmsConfig,
+		EnableMinibatch:                ctx.Bool(flags.EnableMinibatchFlag.Name),
+		EnableGnarkBundleEncoding:      ctx.Bool(flags.EnableGnarkBundleEncodingFlag.Name),
+		NumRequestSerializationWorkers: ctx.GlobalInt(flags.NumRequestSerializationWorkersFlag.Name),
 	}
 	return config, nil
 }
