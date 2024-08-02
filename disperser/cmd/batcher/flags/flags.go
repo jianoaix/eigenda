@@ -204,7 +204,7 @@ var (
 		Usage:    "maximum number of work threads to serialize the dispersal request (defaults to 64)",
 		Required: false,
 		EnvVar:   common.PrefixEnvVar(envVarPrefix, "NUM_REQUEST_SERIALIZATION_WORKERS"),
-		Value:    64,
+		Value:    16,
 	}
 	// EnableMinibatchFlag is a flag to enable minibatch processing
 	// Defaults to false
