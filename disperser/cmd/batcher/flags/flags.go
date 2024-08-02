@@ -272,6 +272,7 @@ var optionalFlags = []cli.Flag{
 	MaxNodeConnectionsFlag,
 	MaxNumRetriesPerDispersalFlag,
 	EnableGnarkBundleEncodingFlag,
+	NumRequestSerializationWorkersFlag,
 }
 
 // Flags contains the list of configuration options available to the binary.
