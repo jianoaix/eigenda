@@ -134,7 +134,8 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "num blobs", len(blobs), "size", totalSize, "request message size", proto.Size(request), "request serialization time", time.Since(start), "num workers", c.NumRequestSerializationWorkers)
+	dur := time.Since(start)
+	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "num blobs", len(blobs), "size", totalSize, "request message size", proto.Size(request), "request serialization time (ms)", dur.Milliseconds(), "serialization speed (MB/s)", float64(totalSize)/(1000*1000*dur.Seconds()), "num workers", c.NumRequestSerializationWorkers)
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
 	reply, err := gc.StoreChunks(ctx, request, opt)
 
