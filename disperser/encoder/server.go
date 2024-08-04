@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	commonpb "github.com/Layr-Labs/eigenda/api/grpc/common"
+	"github.com/Layr-Labs/eigenda/api/grpc/node"
 	"github.com/Layr-Labs/eigenda/common/healthcheck"
 	"github.com/Layr-Labs/eigenda/disperser"
 	pb "github.com/Layr-Labs/eigenda/disperser/api/grpc/encoder"
@@ -114,6 +116,22 @@ func (s *Server) handleEncoding(ctx context.Context, req *pb.EncodeBlobRequest) 
 		return nil, err
 	}
 
+	blobCommitment := &commonpb.G1Commitment{
+		X: commits.Commitment.X.Marshal(),
+		Y: commits.Commitment.Y.Marshal(),
+	}
+	var blobLengthCommit, blobLengthProof node.G2Commitment
+	// Length commitment
+	blobLengthCommit.XA0 = commits.LengthCommitment.X.A0.Marshal()
+	blobLengthCommit.XA1 = commits.LengthCommitment.X.A1.Marshal()
+	blobLengthCommit.YA0 = commits.LengthCommitment.Y.A0.Marshal()
+	blobLengthCommit.YA1 = commits.LengthCommitment.Y.A1.Marshal()
+	// Length proof
+	blobLengthProof.XA0 = commits.LengthProof.X.A0.Marshal()
+	blobLengthProof.XA1 = commits.LengthProof.X.A1.Marshal()
+	blobLengthProof.YA0 = commits.LengthProof.Y.A0.Marshal()
+	blobLengthProof.YA1 = commits.LengthProof.Y.A1.Marshal()
+
 	var chunksData [][]byte
 
 	for _, chunk := range chunks {
@@ -130,10 +148,13 @@ func (s *Server) handleEncoding(ctx context.Context, req *pb.EncodeBlobRequest) 
 
 	return &pb.EncodeBlobReply{
 		Commitment: &pb.BlobCommitment{
-			Commitment:       commitData,
-			LengthCommitment: lengthCommitData,
-			LengthProof:      lengthProofData,
-			Length:           uint32(commits.Length),
+			Commitment:           commitData,
+			LengthCommitment:     lengthCommitData,
+			LengthProof:          lengthProofData,
+			Length:               uint32(commits.Length),
+			BlobCommitment:       blobCommitment,
+			BlobLengthCommitment: &blobLengthCommit,
+			BlobLengthProof:      &blobLengthProof,
 		},
 		Chunks: chunksData,
 	}, nil

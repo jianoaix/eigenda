@@ -3,16 +3,26 @@ syntax = "proto3";
 option go_package = "github.com/Layr-Labs/eigenda/api/grpc/encoder";
 package encoder;
 
+import "common/common.proto";
+import "node/node.proto";
+
 service Encoder {
   rpc EncodeBlob(EncodeBlobRequest) returns (EncodeBlobReply) {}
 }
 
-// BlomCommitments contains the blob's commitment, degree proof, and the actual degree
+// BlobCommitments contains the blob's commitment, degree proof, and the actual degree
 message BlobCommitment {
   bytes commitment = 1;
   bytes length_commitment = 2;
   bytes length_proof = 3;
   uint32 length = 4;
+
+  // Alternative representation of the KZG commitment and proof.
+  // They are meant to replace the "commitment", "length_commitment" and "length_proof"
+  // correspondingly.
+  common.G1Commitment blob_commitment = 5;
+  node.G2Commitment blob_length_commitment = 6;
+  node.G2Commitment blob_length_proof = 7;
 }
 
 // Parameters needed by Encoder for encoding
@@ -27,7 +37,7 @@ message EncodeBlobRequest {
   EncodingParams encoding_params = 2;
 }
 
-// EncodeBlobReply returns all encoded chunks along with BlobCommitment for the same, 
+// EncodeBlobReply returns all encoded chunks along with BlobCommitment for the same,
 // where Chunk is the smallest unit that is distributed to DA nodes
 message EncodeBlobReply {
   BlobCommitment commitment = 1;

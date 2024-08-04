@@ -5,12 +5,28 @@ import (
 	"fmt"
 	"time"
 
+	commonpb "github.com/Layr-Labs/eigenda/api/grpc/common"
+	"github.com/Layr-Labs/eigenda/api/grpc/node"
 	"github.com/Layr-Labs/eigenda/disperser"
 	pb "github.com/Layr-Labs/eigenda/disperser/api/grpc/encoder"
 	"github.com/Layr-Labs/eigenda/encoding"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+type SerializedEncodingResult struct {
+	blobCommitment   *commonpb.G1Commitment
+	blobLengthCommit *node.G2Commitment
+	blobLengthProof  *node.G2Commitment
+
+	chunks [][]byte
+}
+
+type EncodeBlobResult struct {
+	commits *encoding.BlobCommitments
+
+	serializedEncodingResult SerializedEncodingResult
+}
 
 type client struct {
 	addr    string
