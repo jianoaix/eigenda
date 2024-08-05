@@ -327,6 +327,8 @@ func getBlobMessage(blob *core.BlobMessage, useGnarkBundleEncoding bool) (*node.
 	if blob.BlobHeader.Commitment == nil {
 		return nil, errors.New("blob header commitment is nil")
 	}
+
+	start := time.Now()
 	commitData := &commonpb.G1Commitment{
 		X: blob.BlobHeader.Commitment.X.Marshal(),
 		Y: blob.BlobHeader.Commitment.Y.Marshal(),
@@ -344,6 +346,9 @@ func getBlobMessage(blob *core.BlobMessage, useGnarkBundleEncoding bool) (*node.
 		lengthProofData.YA0 = blob.BlobHeader.LengthProof.Y.A0.Marshal()
 		lengthProofData.YA1 = blob.BlobHeader.LengthProof.Y.A1.Marshal()
 	}
+
+	fmt.Println("Xdeb serialize commits time (ms):", time.Since(start).Milliseconds())
+	start = time.Now()
 
 	quorumHeaders := make([]*node.BlobQuorumInfo, len(blob.BlobHeader.QuorumInfos))
 
@@ -397,6 +402,7 @@ func getBlobMessage(blob *core.BlobMessage, useGnarkBundleEncoding bool) (*node.
 			}
 		}
 	}
+	fmt.Println("Xdeb serialize chunks time (ms):", time.Since(start).Milliseconds())
 
 	return &node.Blob{
 		Header: &node.BlobHeader{
