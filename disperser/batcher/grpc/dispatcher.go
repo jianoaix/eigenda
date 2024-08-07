@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/eigenda/core"
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/disperser/batcher"
+	"github.com/Layr-Labs/eigenda/encoding"
 	"github.com/Layr-Labs/eigensdk-go/logging"
 
 	"google.golang.org/grpc"
@@ -49,6 +50,14 @@ func (c *dispatcher) DisperseBatch(ctx context.Context, state *core.IndexedOpera
 	return update
 }
 
+func getBundlesSize(blob *core.BlobMessage) int64 {
+	size := int64(0)
+	for _, bundle := range blob.EncodedBundles {
+		size += int64(bundle.Size())
+	}
+	return size
+}
+
 func (c *dispatcher) sendAllChunks(ctx context.Context, state *core.IndexedOperatorState, blobs []core.EncodedBlob, batchHeader *core.BatchHeader, update chan core.SigningMessage) {
 	for id, op := range state.IndexedOperators {
 		go func(op core.IndexedOperatorInfo, id core.OperatorID) {
@@ -59,13 +68,13 @@ func (c *dispatcher) sendAllChunks(ctx context.Context, state *core.IndexedOpera
 				return
 			}
 			for _, blob := range blobs {
-				if _, ok := blob.BundlesByOperator[id]; ok {
+				if _, ok := blob.EncodedBundlesByOperator[id]; ok {
 					hasAnyBundles = true
 				}
 				blobMessages = append(blobMessages, &core.BlobMessage{
 					BlobHeader: blob.BlobHeader,
 					// Bundles will be empty if the operator is not in the quorums blob is dispersed on
-					Bundles: blob.BundlesByOperator[id],
+					EncodedBundles: blob.EncodedBundlesByOperator[id],
 				})
 			}
 			if !hasAnyBundles {
@@ -289,7 +298,7 @@ func GetStoreChunksRequest(blobMessages []*core.BlobMessage, batchHeader *core.B
 		if err != nil {
 			return nil, 0, err
 		}
-		totalSize += int64(blob.Bundles.Size())
+		totalSize += getBundlesSize(blob)
 	}
 
 	request := &node.StoreChunksRequest{
@@ -309,7 +318,7 @@ func GetStoreBlobsRequest(blobMessages []*core.BlobMessage, batchHeader *core.Ba
 		if err != nil {
 			return nil, 0, err
 		}
-		totalSize += int64(blob.Bundles.Size())
+		totalSize += getBundlesSize(blob)
 	}
 
 	request := &node.StoreBlobsRequest{
@@ -358,12 +367,20 @@ func getBlobMessage(blob *core.BlobMessage, useGnarkBundleEncoding bool) (*node.
 	}
 
 	bundles := make([]*node.Bundle, len(quorumHeaders))
+	var err error
 	if useGnarkBundleEncoding {
 		// the ordering of quorums in bundles must be same as in quorumHeaders
 		for i, quorumHeader := range quorumHeaders {
 			quorum := quorumHeader.QuorumId
-			if bundle, ok := blob.Bundles[uint8(quorum)]; ok {
-				bundleBytes, err := bundle.Serialize()
+			if chunksData, ok := blob.EncodedBundles[uint8(quorum)]; ok {
+				if chunksData.Format != core.GnarkChunkEncodingFormat {
+					chunksData, err = convertToGnarkChunks(chunksData)
+					if err != nil {
+						return nil, err
+					}
+				}
+
+				bundleBytes, err := chunksData.FlattenToBundle()
 				if err != nil {
 					return nil, err
 				}
@@ -378,16 +395,18 @@ func getBlobMessage(blob *core.BlobMessage, useGnarkBundleEncoding bool) (*node.
 			}
 		}
 	} else {
-		data, err := blob.Bundles.Serialize()
-		if err != nil {
-			return nil, err
-		}
 		// the ordering of quorums in bundles must be same as in quorumHeaders
 		for i, quorumHeader := range quorumHeaders {
 			quorum := quorumHeader.QuorumId
-			if _, ok := blob.Bundles[uint8(quorum)]; ok {
+			if chunksData, ok := blob.EncodedBundles[uint8(quorum)]; ok {
+				if chunksData.Format != core.GobChunkEncodingFormat {
+					chunksData, err = convertToGobChunks(chunksData)
+					if err != nil {
+						return nil, err
+					}
+				}
 				bundles[i] = &node.Bundle{
-					Chunks: data[quorum],
+					Chunks: chunksData.Chunks,
 				}
 			} else {
 				bundles[i] = &node.Bundle{
@@ -407,6 +426,56 @@ func getBlobMessage(blob *core.BlobMessage, useGnarkBundleEncoding bool) (*node.
 			QuorumHeaders:    quorumHeaders,
 		},
 		Bundles: bundles,
+	}, nil
+}
+
+func convertToGobChunks(chunks *core.ChunksData) (*core.ChunksData, error) {
+	if chunks.Format == core.GobChunkEncodingFormat {
+		return chunks, nil
+	}
+	if chunks.Format != core.GnarkChunkEncodingFormat {
+		return nil, fmt.Errorf("unsupported chunk encoding format: %d", chunks.Format)
+	}
+	gobChunks := make([][]byte, 0, len(chunks.Chunks))
+	for _, chunk := range chunks.Chunks {
+		c, err := new(encoding.Frame).DeserializeGnark(chunk)
+		if err != nil {
+			return nil, err
+		}
+		gob, err := c.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		gobChunks = append(gobChunks, gob)
+	}
+	return &core.ChunksData{
+		Chunks: gobChunks,
+		Format: core.GobChunkEncodingFormat,
+	}, nil
+}
+
+func convertToGnarkChunks(chunks *core.ChunksData) (*core.ChunksData, error) {
+	if chunks.Format == core.GnarkChunkEncodingFormat {
+		return chunks, nil
+	}
+	if chunks.Format != core.GobChunkEncodingFormat {
+		return nil, fmt.Errorf("unsupported chunk encoding format: %d", chunks.Format)
+	}
+	gobChunks := make([][]byte, 0, len(chunks.Chunks))
+	for _, chunk := range chunks.Chunks {
+		c, err := new(encoding.Frame).Deserialize(chunk)
+		if err != nil {
+			return nil, err
+		}
+		gob, err := c.SerializeGnark()
+		if err != nil {
+			return nil, err
+		}
+		gobChunks = append(gobChunks, gob)
+	}
+	return &core.ChunksData{
+		Chunks: gobChunks,
+		Format: core.GnarkChunkEncodingFormat,
 	}, nil
 }
 

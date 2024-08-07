@@ -32,6 +32,8 @@ type SecurityParam struct {
 
 type BundleEncodingFormat = uint8
 
+type ChunkEncodingFormat = uint8
+
 const (
 	// We use uint8 to count the number of quorums, so we can have at most 255 quorums,
 	// which means the max ID can not be larger than 254 (from 0 to 254, there are 255
@@ -52,6 +54,12 @@ const (
 	// in protobuf, UNKNOWN as 0 is a convention).
 	GobBundleEncodingFormat   BundleEncodingFormat = 0
 	GnarkBundleEncodingFormat BundleEncodingFormat = 1
+
+	// Similar to bundle encoding format, this describes the encoding format of chunks.
+	// The difference is ChunkEncodingFormat is just about chunks, whereas BundleEncodingFormat
+	// is also about how multiple chunks of the same bundle are encoded into a single byte array.
+	GobChunkEncodingFormat   ChunkEncodingFormat = 0
+	GnarkChunkEncodingFormat ChunkEncodingFormat = 1
 )
 
 func (s *SecurityParam) String() string {
@@ -158,10 +166,53 @@ type BatchHeader struct {
 	BatchRoot [32]byte
 }
 
+type ChunksData struct {
+	// Chunks is the encoded bytes of the chunks
+	Chunks [][]byte
+	// Format describes how the bytes of the chunks are encoded
+	Format ChunkEncodingFormat
+}
+
+func (c ChunksData) Size() uint64 {
+	if len(c.Chunks) == 0 {
+		return 0
+	}
+	// Each chunk has the same length
+	return uint64(len(c.Chunks)) * uint64(len(c.Chunks[0]))
+}
+
+func (c ChunksData) FlattenToBundle() ([]byte, error) {
+	size := c.Size()
+	result := make([]byte, size+8)
+	buf := result
+	var format BundleEncodingFormat
+	switch c.Format {
+	case GobChunkEncodingFormat:
+		format = GobBundleEncodingFormat
+	case GnarkChunkEncodingFormat:
+		format = GnarkBundleEncodingFormat
+	default:
+		return nil, fmt.Errorf("unsupported chunk encoding format: %v", c.Format)
+	}
+	chunkLen := 0
+	if len(c.Chunks) > 0 {
+		chunkLen = len(c.Chunks[0]) / encoding.BYTES_PER_SYMBOL
+	}
+	metadata := (uint64(format) << (NumBundleHeaderBits - NumBundleEncodingFormatBits)) | uint64(chunkLen)
+	binary.LittleEndian.PutUint64(buf, metadata)
+	buf = buf[8:]
+	for _, c := range c.Chunks {
+		copy(buf, c)
+		buf = buf[len(c):]
+	}
+	return result, nil
+}
+
 // EncodedBlob contains the messages to be sent to a group of DA nodes corresponding to a single blob
 type EncodedBlob struct {
-	BlobHeader        *BlobHeader
-	BundlesByOperator map[OperatorID]Bundles
+	BlobHeader               *BlobHeader
+	BundlesByOperator        map[OperatorID]Bundles
+	EncodedBundlesByOperator map[OperatorID]map[QuorumID]*ChunksData
 }
 
 // A Bundle is the collection of chunks associated with a single blob, for a single operator and a single quorum.
@@ -174,6 +225,8 @@ type Bundles map[QuorumID]Bundle
 type BlobMessage struct {
 	BlobHeader *BlobHeader
 	Bundles    Bundles
+	// EncodedBundles is bundles in encoded format (not deserialized)
+	EncodedBundles map[QuorumID]*ChunksData
 }
 
 func (b Bundle) Size() uint64 {
