@@ -327,6 +327,7 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 		format := GetBundleEncodingFormat(rawBlob)
 		rawBundles := make(map[core.QuorumID][]byte)
 		rawChunks := make(map[core.QuorumID][][]byte)
+		log.Info("Chunk encoding format", "format", format)
 		for i, bundle := range rawBlob.GetBundles() {
 			quorumID := uint8(rawBlob.GetHeader().GetQuorumHeaders()[i].GetQuorumId())
 			if format == core.GnarkBundleEncodingFormat {
