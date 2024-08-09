@@ -133,9 +133,6 @@ func (c *dispatcher) sendChunks(ctx context.Context, blobs []*core.BlobMessage, 
 		return nil, err
 	}
 	c.logger.Debug("sending chunks to operator", "operator", op.Socket, "num blobs", len(blobs), "size", totalSize, "request message size", proto.Size(request), "request serialization time", time.Since(start), "use Gnark chunk encoding", c.EnableGnarkBundleEncoding)
-	c.logger.Debug("XXX dummy", "c.EnableGnarkBundleEncoding", "dummy")
-	fmt.Println("XXX if using gnark chunk encoding dummy")
-	fmt.Println("XXX if using gnark chunk encoding:", c.EnableGnarkBundleEncoding)
 	opt := grpc.MaxCallSendMsgSize(60 * 1024 * 1024 * 1024)
 	reply, err := gc.StoreChunks(ctx, request, opt)
 

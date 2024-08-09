@@ -355,6 +355,7 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 			if format == core.GnarkBundleEncodingFormat {
 				rawBundle, ok := rawBundles[quorumID]
 				if ok {
+					log.Info("Store chunks encoding format Gnark")
 					size += int64(len(rawBundle))
 					keys = append(keys, key)
 					values = append(values, rawBundle)
@@ -365,7 +366,7 @@ func (s *Store) StoreBatch(ctx context.Context, header *core.BatchHeader, blobs 
 				}
 				chunksBytes, ok := rawChunks[quorumID]
 				if ok {
-
+					log.Info("Store chunks encoding format Gob")
 					bundleRaw := make([][]byte, len(bundle))
 					for i := 0; i < len(bundle); i++ {
 						bundleRaw[i] = chunksBytes[i]
@@ -595,12 +596,14 @@ func (s *Store) GetChunks(ctx context.Context, batchHeaderHash [32]byte, blobInd
 	if err != nil {
 		return nil, node.ChunkEncodingFormat_UNKNOWN, err
 	}
-	log.Debug("Retrieved chunk", "blobKey", hexutil.Encode(blobKey), "length", len(data))
 
 	chunks, format, err := DecodeChunks(data)
 	if err != nil {
 		return nil, format, err
 	}
+
+	log.Debug("Retrieved chunk", "blobKey", hexutil.Encode(blobKey), "length", len(data), "chunk encoding format", format)
+
 	return chunks, format, nil
 }
 
