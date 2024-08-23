@@ -402,6 +402,8 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 				Err: nil,
 			}
 			e.metrics.ObserveEncodingLatency("success", res.BlobQuorumInfo.QuorumID, len(blob.Data), float64(time.Since(start).Milliseconds()))
+
+			fmt.Println("XXX encoding latency client side (ms):", time.Since(start).Milliseconds(), " blob size:", len(blob.Data))
 		})
 		e.EncodedBlobstore.PutEncodingRequest(blobKey, res.BlobQuorumInfo.QuorumID)
 	}
