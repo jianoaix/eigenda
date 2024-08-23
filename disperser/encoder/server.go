@@ -128,7 +128,7 @@ func (s *Server) handleEncoding(ctx context.Context, req *pb.EncodeBlobRequest) 
 	totalTime := time.Since(begin)
 	s.metrics.TakeLatency(encodingTime, totalTime)
 
-	fmt.Println("XXX encoding latency server side (ms):", totalTime.Milliseconds(), " blob size:", len(req.Data))
+	fmt.Println("XXX encoding latency server side (ms):", totalTime.Milliseconds(), " blob size:", len(req.Data), "chunkLength:", encodingParams.ChunkLength, "numChunks:", encodingParams.NumChunks)
 
 	return &pb.EncodeBlobReply{
 		Commitment: &pb.BlobCommitment{
