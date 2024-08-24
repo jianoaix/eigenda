@@ -403,7 +403,13 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 			}
 			e.metrics.ObserveEncodingLatency("success", res.BlobQuorumInfo.QuorumID, len(blob.Data), float64(time.Since(start).Milliseconds()))
 
-			fmt.Println("XXX encoding latency client side (ms):", time.Since(start).Milliseconds(), " blob size:", len(blob.Data), "chunkLength:", res.EncodingParams.ChunkLength, "numChunks:", res.EncodingParams.NumChunks)
+			latency := float64(time.Since(start).Milliseconds())
+			if latency > 3.4 {
+				fmt.Println("XXX encoding latency client side (ms):", latency, "blob size:", len(blob.Data), "chunkLength:", res.EncodingParams.ChunkLength, "numChunks:", res.EncodingParams.NumChunks)
+			}
+			if latency > 8 {
+				fmt.Println("XXXYYY encoding latency client side (ms):", latency, "blob size:", len(blob.Data), "chunkLength:", res.EncodingParams.ChunkLength, "numChunks:", res.EncodingParams.NumChunks)
+			}
 		})
 		e.EncodedBlobstore.PutEncodingRequest(blobKey, res.BlobQuorumInfo.QuorumID)
 	}
