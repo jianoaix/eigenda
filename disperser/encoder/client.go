@@ -48,6 +48,8 @@ func (c client) EncodeBlob(ctx context.Context, data []byte, encodingParams enco
 		return nil, nil, err
 	}
 
+	start := time.Now()
+
 	commitment, err := new(encoding.G1Commitment).Deserialize(reply.GetCommitment().GetCommitment())
 	if err != nil {
 		return nil, nil, err
@@ -60,6 +62,20 @@ func (c client) EncodeBlob(ctx context.Context, data []byte, encodingParams enco
 	if err != nil {
 		return nil, nil, err
 	}
+
+	fmt.Println("XXX deser commitments (ms):", time.Since(start).Milliseconds())
+	start = time.Now()
+
+	chunks := make([]*encoding.Frame, len(reply.GetChunks()))
+	for i, chunk := range reply.GetChunks() {
+		deserialized, err := new(encoding.Frame).Deserialize(chunk)
+		if err != nil {
+			return nil, nil, err
+		}
+		chunks[i] = deserialized
+	}
+	fmt.Println("XXX deser chunks (ms):", time.Since(start).Milliseconds())
+
 	chunksData := &core.ChunksData{
 		Chunks: reply.GetChunks(),
 		// TODO(jianoaix): plumb the encoding format for the encoder server. For now it's fine
