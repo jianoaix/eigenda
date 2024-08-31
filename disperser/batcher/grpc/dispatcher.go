@@ -365,6 +365,7 @@ func getBlobMessage(blob *core.EncodedBlobMessage, useGnarkBundleEncoding bool) 
 			quorum := quorumHeader.QuorumId
 			if chunksData, ok := blob.EncodedBundles[uint8(quorum)]; ok {
 				if chunksData.Format != core.GnarkChunkEncodingFormat {
+					fmt.Println("XXX Gob to Gnark")
 					chunksData, err = chunksData.ToGnarkFormat()
 					if err != nil {
 						return nil, err
@@ -390,6 +391,7 @@ func getBlobMessage(blob *core.EncodedBlobMessage, useGnarkBundleEncoding bool) 
 			quorum := quorumHeader.QuorumId
 			if chunksData, ok := blob.EncodedBundles[uint8(quorum)]; ok {
 				if chunksData.Format != core.GobChunkEncodingFormat {
+					fmt.Println("XXX Gnark to Gob")
 					chunksData, err = chunksData.ToGobFormat()
 					if err != nil {
 						return nil, err
