@@ -68,6 +68,7 @@ func (c client) EncodeBlob(ctx context.Context, data []byte, encodingParams enco
 	case pb.ChunkEncodingFormat_GOB:
 		format = core.GobChunkEncodingFormat
 	default:
+		fmt.Println("XXX invalid chunk encoding format")
 		return nil, nil, errors.New("invalid chunk encoding format")
 	}
 	chunksData := &core.ChunksData{
