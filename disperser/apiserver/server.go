@@ -690,6 +690,8 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 				Info:        RetrievalBlobRateType.String(),
 			},
 		})
+		fmt.Println("XX duration to check --- blob rate limiting")
+
 		if err != nil {
 			s.metrics.HandleInternalFailureRpcRequest("RetrieveBlob")
 			return nil, api.NewInternalError(fmt.Sprintf("ratelimiter error: %v", err))
@@ -749,6 +751,7 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 				Info:        RetrievalThroughputType.String(),
 			},
 		})
+		fmt.Println("XX duration to check --- byte rate limiting")
 		if err != nil {
 			s.metrics.HandleInternalFailureRpcRequest("RetrieveBlob")
 			return nil, api.NewInternalError(fmt.Sprintf("ratelimiter error: %v", err))
