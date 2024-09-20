@@ -717,7 +717,7 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 	blobIndex := req.GetBlobIndex()
 
 	blobMetadata, err := s.blobStore.GetMetadataInBatch(ctx, batchHeaderHash32, blobIndex)
-	s.logger.Info("duration to check blob metadata", time.Since(start).Milliseconds())
+	s.logger.Info("read blob metadata", "duration to check blob metadata", time.Since(start).Milliseconds())
 	start = time.Now()
 	if err != nil {
 		s.logger.Error("Failed to retrieve blob metadata", "err", err)
@@ -764,7 +764,7 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 			return nil, api.NewResourceExhaustedError(errorString)
 		}
 	}
-	s.logger.Info("duration to check bytes rate limit", time.Since(start).Milliseconds())
+	s.logger.Info("bytes rate limiting", "duration to check bytes rate limit", time.Since(start).Milliseconds())
 	start = time.Now()
 
 	data, err := s.blobStore.GetBlobContent(ctx, blobMetadata.BlobHash)
@@ -774,7 +774,7 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 		s.metrics.HandleFailedRequest(codes.Internal.String(), "", len(data), "RetrieveBlob")
 		return nil, api.NewInternalError("failed to get blob data, please retry")
 	}
-	s.logger.Info("duration to check blob content", time.Since(start).Milliseconds())
+	s.logger.Info("read blob content", "duration to check blob content", time.Since(start).Milliseconds())
 
 	s.metrics.HandleSuccessfulRpcRequest("RetrieveBlob")
 	s.metrics.HandleSuccessfulRequest("", len(data), "RetrieveBlob")
