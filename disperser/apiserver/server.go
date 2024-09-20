@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/status"
 	"math/rand"
 	"net"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc/status"
 
 	"github.com/Layr-Labs/eigenda/api"
 	commonpb "github.com/Layr-Labs/eigenda/api/grpc/common"
@@ -677,6 +678,8 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 		return nil, api.NewInvalidArgError(err.Error())
 	}
 
+	start := time.Now()
+
 	// Check blob rate limit
 	if s.ratelimiter != nil {
 		allowed, param, err := s.ratelimiter.AllowRequest(ctx, []common.RequestParams{
@@ -703,7 +706,8 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 		}
 	}
 
-	s.logger.Info("received a new blob retrieval request", "batchHeaderHash", req.BatchHeaderHash, "blobIndex", req.BlobIndex)
+	s.logger.Info("received a new blob retrieval request", "batchHeaderHash", req.BatchHeaderHash, "blobIndex", req.BlobIndex, "duration to check blob rate limit", time.Since(start).Milliseconds())
+	start = time.Now()
 
 	batchHeaderHash := req.GetBatchHeaderHash()
 	// Convert to [32]byte
@@ -713,6 +717,8 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 	blobIndex := req.GetBlobIndex()
 
 	blobMetadata, err := s.blobStore.GetMetadataInBatch(ctx, batchHeaderHash32, blobIndex)
+	s.logger.Info("duration to check blob metadata", time.Since(start).Milliseconds())
+	start = time.Now()
 	if err != nil {
 		s.logger.Error("Failed to retrieve blob metadata", "err", err)
 		if errors.Is(err, disperser.ErrMetadataNotFound) {
@@ -758,6 +764,8 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 			return nil, api.NewResourceExhaustedError(errorString)
 		}
 	}
+	s.logger.Info("duration to check bytes rate limit", time.Since(start).Milliseconds())
+	start = time.Now()
 
 	data, err := s.blobStore.GetBlobContent(ctx, blobMetadata.BlobHash)
 	if err != nil {
@@ -766,6 +774,8 @@ func (s *DispersalServer) RetrieveBlob(ctx context.Context, req *pb.RetrieveBlob
 		s.metrics.HandleFailedRequest(codes.Internal.String(), "", len(data), "RetrieveBlob")
 		return nil, api.NewInternalError("failed to get blob data, please retry")
 	}
+	s.logger.Info("duration to check blob content", time.Since(start).Milliseconds())
+
 	s.metrics.HandleSuccessfulRpcRequest("RetrieveBlob")
 	s.metrics.HandleSuccessfulRequest("", len(data), "RetrieveBlob")
 
