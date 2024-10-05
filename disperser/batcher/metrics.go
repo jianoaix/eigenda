@@ -68,9 +68,12 @@ type Metrics struct {
 	BatchProcLatency          *prometheus.SummaryVec
 	BatchProcLatencyHistogram *prometheus.HistogramVec
 	BlobAge                   *prometheus.SummaryVec
-	BlobSizeTotal             *prometheus.CounterVec
-	Attestation               *prometheus.GaugeVec
-	BatchError                *prometheus.CounterVec
+	BBlobAge                  *prometheus.GaugeVec
+	CBlobAge                  *prometheus.SummaryVec
+
+	BlobSizeTotal *prometheus.CounterVec
+	Attestation   *prometheus.GaugeVec
+	BatchError    *prometheus.CounterVec
 
 	httpPort string
 	logger   logging.Logger
@@ -240,6 +243,27 @@ func NewMetrics(httpPort string, logger logging.Logger) *Metrics {
 			// encoding_requested -> encoded -> batched -> attestation_requested -> attested -> confirmed
 			[]string{"stage"},
 		),
+		CBlobAge: promauto.With(reg).NewSummaryVec(
+			prometheus.SummaryOpts{
+				Namespace:  namespace,
+				Name:       "cblob_age_ms",
+				Help:       "blob age (in ms) since dispersal request time at different stages of its lifecycle",
+				Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.95: 0.01, 0.99: 0.001},
+			},
+			// The stage would be:
+			// encoding_requested -> encoded -> batched -> attestation_requested -> attested -> confirmed
+			[]string{"stage"},
+		),
+
+		BBlobAge: promauto.With(reg).NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Name:      "bblob_age_ms",
+				Help:      "number of signers and non-signers for the batch",
+			},
+			[]string{"stage"},
+		),
+
 		BlobSizeTotal: promauto.With(reg).NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: namespace,
@@ -342,7 +366,11 @@ func (g *Metrics) ObserveLatency(stage string, latencyMs float64) {
 }
 
 func (g *Metrics) ObserveBlobAge(stage string, ageMs float64) {
+	g.logger.Info("observe blob age", "ageMs", ageMs, "stage", stage)
 	g.BlobAge.WithLabelValues(stage).Observe(ageMs)
+	g.BBlobAge.WithLabelValues(stage).Set(ageMs)
+	g.CBlobAge.WithLabelValues(stage).Observe(ageMs)
+
 }
 
 func (g *Metrics) IncrementBlobSize(stage string, quorumId core.QuorumID, blobSize int) {
