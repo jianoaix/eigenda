@@ -368,7 +368,7 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 	if len(pending) > 0 {
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
 		e.batcherMetrics.ObserveBlobAge("encoding_requested", float64(time.Since(requestTime).Milliseconds()))
-		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String())
+		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String(), "value", float64(time.Since(requestTime).Milliseconds()))
 	}
 
 	// Execute the encoding requests
