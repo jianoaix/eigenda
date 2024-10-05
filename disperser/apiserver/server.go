@@ -226,6 +226,7 @@ func (s *DispersalServer) DisperseBlobAuthenticated(stream pb.Disperser_Disperse
 }
 
 func (s *DispersalServer) DisperseBlob(ctx context.Context, req *pb.DisperseBlobRequest) (*pb.DisperseBlobReply, error) {
+	start := time.Now()
 	blob, err := s.validateRequestAndGetBlob(ctx, req)
 	if err != nil {
 		for _, quorumID := range req.CustomQuorumNumbers {
@@ -234,6 +235,7 @@ func (s *DispersalServer) DisperseBlob(ctx context.Context, req *pb.DisperseBlob
 		s.metrics.HandleInvalidArgRpcRequest("DisperseBlob")
 		return nil, api.NewInvalidArgError(err.Error())
 	}
+	s.logger.Info("DisperseBlob latency - validation", "duration", time.Since(start).String())
 
 	reply, err := s.disperseBlob(ctx, blob, "", "DisperseBlob")
 	if err != nil {
@@ -242,6 +244,7 @@ func (s *DispersalServer) DisperseBlob(ctx context.Context, req *pb.DisperseBlob
 	} else {
 		s.metrics.HandleSuccessfulRpcRequest("DisperseBlob")
 	}
+	s.logger.Info("DisperseBlob latency - total", "duration", time.Since(start).String())
 	return reply, err
 }
 
@@ -280,7 +283,8 @@ func (s *DispersalServer) disperseBlob(ctx context.Context, blob *core.Blob, aut
 		}
 	}
 
-	requestedAt := uint64(time.Now().UnixNano())
+	start := time.Now()
+	requestedAt := uint64(start.UnixNano())
 	metadataKey, err := s.blobStore.StoreBlob(ctx, blob, requestedAt)
 	if err != nil {
 		for _, param := range securityParams {
@@ -294,6 +298,7 @@ func (s *DispersalServer) disperseBlob(ctx context.Context, blob *core.Blob, aut
 	for _, param := range securityParams {
 		s.metrics.HandleSuccessfulRequest(fmt.Sprintf("%d", param.QuorumID), blobSize, apiMethodName)
 	}
+	s.logger.Info("Time after requestedAt", "duration", time.Since(start).String())
 
 	return &pb.DisperseBlobReply{
 		Result:    pb.BlobStatus_PROCESSING,
