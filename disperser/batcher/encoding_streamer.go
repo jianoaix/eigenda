@@ -290,6 +290,9 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 	for i := range metadatas {
 		metadata := metadatas[i]
 
+		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
+		e.logger.Info("encoding_requested age - after fetched blobs", "age", time.Since(requestTime).String())
+
 		e.RequestEncodingForBlob(ctx, metadata, blobs[metadata.GetBlobKey()], state, referenceBlockNumber, encoderChan)
 	}
 
@@ -365,6 +368,7 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 	if len(pending) > 0 {
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
 		e.batcherMetrics.ObserveBlobAge("encoding_requested", float64(time.Since(requestTime).Milliseconds()))
+		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String())
 	}
 
 	// Execute the encoding requests
