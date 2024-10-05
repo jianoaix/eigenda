@@ -17,7 +17,7 @@ import (
 	grpc_metadata "google.golang.org/grpc/metadata"
 )
 
-const encodingInterval = 2 * time.Second
+const encodingInterval = 100 * time.Millisecond
 
 var errNoEncodedResults = errors.New("no encoded results")
 
