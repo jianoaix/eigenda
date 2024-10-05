@@ -13,6 +13,9 @@ import (
 	"github.com/Layr-Labs/eigenda/disperser"
 	"github.com/Layr-Labs/eigenda/encoding"
 	"github.com/Layr-Labs/eigensdk-go/logging"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wealdtech/go-merkletree/v2"
 	grpc_metadata "google.golang.org/grpc/metadata"
 )
@@ -77,6 +80,8 @@ type EncodingStreamer struct {
 
 	// Used to keep track of the last evaluated key for fetching metadatas
 	exclusiveStartKey *disperser.BlobStoreExclusiveStartKey
+
+	aBlobAge *prometheus.SummaryVec
 }
 
 type batch struct {
@@ -91,8 +96,7 @@ type batch struct {
 func NewEncodedSizeNotifier(notify chan struct{}, threshold uint64) *EncodedSizeNotifier {
 	return &EncodedSizeNotifier{
 		Notify:    notify,
-		threshold: threshold,
-		active:    true,
+		threshold: threshold, active: true,
 	}
 }
 
@@ -110,6 +114,19 @@ func NewEncodingStreamer(
 	if config.EncodingQueueLimit <= 0 {
 		return nil, errors.New("EncodingQueueLimit should be greater than 0")
 	}
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	reg.MustRegister(collectors.NewGoCollector())
+	aBlobAge := promauto.With(reg).NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace:  "",
+			Name:       "ablob_age_ms",
+			Help:       "blob age (in ms) since dispersal request time at different stages of its lifecycle",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.95: 0.01, 0.99: 0.001},
+		},
+		[]string{"stage"},
+	)
 	return &EncodingStreamer{
 		StreamerConfig:         config,
 		EncodedBlobstore:       newEncodedBlobStore(logger),
@@ -125,6 +142,7 @@ func NewEncodingStreamer(
 		batcherMetrics:         batcherMetrics,
 		logger:                 logger.With("component", "EncodingStreamer"),
 		exclusiveStartKey:      nil,
+		aBlobAge:               aBlobAge,
 	}, nil
 }
 
@@ -369,6 +387,7 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
 		e.batcherMetrics.ObserveBlobAge("encoding_requested", float64(time.Since(requestTime).Milliseconds()))
 		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String(), "value", float64(time.Since(requestTime).Milliseconds()))
+		e.aBlobAge.WithLabelValues("encoding_requested_").Observe(float64(time.Since(requestTime).Milliseconds()))
 	}
 
 	// Execute the encoding requests
