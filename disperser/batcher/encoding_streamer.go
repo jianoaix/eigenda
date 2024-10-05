@@ -263,6 +263,7 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 
 	// Get the operator state
 
+	stageTimer = time.Now()
 	timeoutCtx, cancel := context.WithTimeout(ctx, e.ChainStateTimeout)
 	defer cancel()
 	state, err := e.getOperatorState(timeoutCtx, metadatas, referenceBlockNumber)
@@ -275,6 +276,7 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 	for _, metadata := range metadatas {
 		metadataByKey[metadata.GetBlobKey()] = metadata
 	}
+	e.logger.Debug("get operator states", "numBlobs", len(metadatas), "duration", time.Since(stageTimer))
 
 	stageTimer = time.Now()
 	blobs, err := e.blobStore.GetBlobsByMetadata(ctx, metadatas)
