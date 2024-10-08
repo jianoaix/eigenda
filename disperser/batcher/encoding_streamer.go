@@ -20,7 +20,7 @@ import (
 	grpc_metadata "google.golang.org/grpc/metadata"
 )
 
-const encodingInterval = 100 * time.Millisecond
+const encodingInterval = 300 * time.Millisecond
 
 var errNoEncodedResults = errors.New("no encoded results")
 
@@ -277,7 +277,7 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 	// TODO: this should be done at the request time and keep the cursor so that we don't fetch the same metadata every time
 	metadatas = metadatas[:numMetadatastoProcess]
 
-	e.logger.Debug("new metadatas to encode", "numMetadata", len(metadatas), "duration", time.Since(stageTimer))
+	e.logger.Debug("new metadatas to encode", "numMetadata", len(metadatas), "duration", time.Since(stageTimer).String())
 
 	// Get the operator state
 
@@ -294,7 +294,7 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 	for _, metadata := range metadatas {
 		metadataByKey[metadata.GetBlobKey()] = metadata
 	}
-	e.logger.Debug("get operator states", "numBlobs", len(metadatas), "duration", time.Since(stageTimer))
+	e.logger.Debug("get operator states", "numBlobs", len(metadatas), "duration", time.Since(stageTimer).String())
 
 	stageTimer = time.Now()
 	blobs, err := e.blobStore.GetBlobsByMetadata(ctx, metadatas)
@@ -310,6 +310,9 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
 		e.logger.Info("encoding_requested age - after fetched blobs", "age", time.Since(requestTime).String())
+		if time.Since(requestTime).Milliseconds() > 2000 {
+			e.logger.Info("encoding_requested age - after fetched blobs", "XX age", time.Since(requestTime).String(), "blob size bytes", metadata.RequestMetadata.BlobSize)
+		}
 
 		e.RequestEncodingForBlob(ctx, metadata, blobs[metadata.GetBlobKey()], state, referenceBlockNumber, encoderChan)
 	}
@@ -388,7 +391,7 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 		e.batcherMetrics.ObserveBlobAge("encoding_requested", float64(time.Since(requestTime).Milliseconds()))
 		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String(), "value", float64(time.Since(requestTime).Milliseconds()))
 		if float64(time.Since(requestTime).Milliseconds()) > 2000 {
-			e.logger.Info("encoding_requested age - before sending requests", "XX big latency found", float64(time.Since(requestTime).Milliseconds()))
+			e.logger.Info("encoding_requested age - before sending requests", "XX big latency found", time.Since(requestTime).String())
 		}
 		e.aBlobAge.WithLabelValues("encoding_requested_").Observe(float64(time.Since(requestTime).Milliseconds()))
 	}
