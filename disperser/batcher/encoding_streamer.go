@@ -309,8 +309,8 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 		metadata := metadatas[i]
 
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
-		e.logger.Info("encoding_requested age - after fetched blobs", "age", time.Since(requestTime).String())
-		if time.Since(requestTime).Milliseconds() > 2000 {
+		e.logger.Info("encoding_requested age - after fetched blobs", "age", time.Since(requestTime).String(), "blob size bytes", metadata.RequestMetadata.BlobSize)
+		if float64(time.Since(requestTime).Milliseconds()) > 2000 {
 			e.logger.Info("encoding_requested age - after fetched blobs", "XX age", time.Since(requestTime).String(), "blob size bytes", metadata.RequestMetadata.BlobSize)
 		}
 
@@ -389,9 +389,9 @@ func (e *EncodingStreamer) RequestEncodingForBlob(ctx context.Context, metadata 
 	if len(pending) > 0 {
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
 		e.batcherMetrics.ObserveBlobAge("encoding_requested", float64(time.Since(requestTime).Milliseconds()))
-		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String(), "value", float64(time.Since(requestTime).Milliseconds()))
+		e.logger.Info("encoding_requested age - before sending requests", "age", time.Since(requestTime).String(), "value", float64(time.Since(requestTime).Milliseconds()), "blob size bytes", metadata.RequestMetadata.BlobSize)
 		if float64(time.Since(requestTime).Milliseconds()) > 2000 {
-			e.logger.Info("encoding_requested age - before sending requests", "XX big latency found", time.Since(requestTime).String())
+			e.logger.Info("encoding_requested age - before sending requests", "XX big latency found", time.Since(requestTime).String(), "blob size bytes", metadata.RequestMetadata.BlobSize)
 		}
 		e.aBlobAge.WithLabelValues("encoding_requested_").Observe(float64(time.Since(requestTime).Milliseconds()))
 	}

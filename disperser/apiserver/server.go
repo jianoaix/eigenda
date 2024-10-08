@@ -299,6 +299,9 @@ func (s *DispersalServer) disperseBlob(ctx context.Context, blob *core.Blob, aut
 		s.metrics.HandleSuccessfulRequest(fmt.Sprintf("%d", param.QuorumID), blobSize, apiMethodName)
 	}
 	s.logger.Info("Time after requestedAt", "duration", time.Since(start).String())
+	if float64(time.Since(start)) > 1000 {
+		s.logger.Info("Time after requestedAt", "XXX duration", time.Since(start).String())
+	}
 
 	return &pb.DisperseBlobReply{
 		Result:    pb.BlobStatus_PROCESSING,
