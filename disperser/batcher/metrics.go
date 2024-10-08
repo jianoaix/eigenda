@@ -70,6 +70,7 @@ type Metrics struct {
 	BlobAge                   *prometheus.SummaryVec
 	BBlobAge                  *prometheus.GaugeVec
 	CBlobAge                  *prometheus.SummaryVec
+	DBlobAge                  *prometheus.HistogramVec
 
 	BlobSizeTotal *prometheus.CounterVec
 	Attestation   *prometheus.GaugeVec
@@ -254,6 +255,15 @@ func NewMetrics(httpPort string, logger logging.Logger) *Metrics {
 			// encoding_requested -> encoded -> batched -> attestation_requested -> attested -> confirmed
 			[]string{"stage"},
 		),
+		DBlobAge: promauto.With(reg).NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: namespace,
+				Name:      "dblob_age_ms",
+				Help:      "blob age histogram in milliseconds",
+				Buckets:   []float64{16, 32, 64, 128, 256, 512, 700, 850, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3400, 3800, 4200, 4600, 5000, 5500, 6000, 6500, 7000, 7500, 8000},
+			},
+			[]string{"stage"},
+		),
 
 		BBlobAge: promauto.With(reg).NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -370,7 +380,7 @@ func (g *Metrics) ObserveBlobAge(stage string, ageMs float64) {
 	g.BlobAge.WithLabelValues(stage).Observe(ageMs)
 	g.BBlobAge.WithLabelValues(stage).Set(ageMs)
 	g.CBlobAge.WithLabelValues(stage).Observe(ageMs)
-
+	g.DBlobAge.WithLabelValues(stage).Observe(ageMs)
 }
 
 func (g *Metrics) IncrementBlobSize(stage string, quorumId core.QuorumID, blobSize int) {
