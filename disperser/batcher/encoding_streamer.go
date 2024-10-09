@@ -82,6 +82,8 @@ type EncodingStreamer struct {
 	exclusiveStartKey *disperser.BlobStoreExclusiveStartKey
 
 	aBlobAge *prometheus.SummaryVec
+
+	blobKeys map[string]struct{}
 }
 
 type batch struct {
@@ -265,6 +267,12 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 
 	for i := range metadatas {
 		metadata := metadatas[i]
+
+		if _, ok := e.blobKeys[metadata.GetBlobKey().String()]; ok {
+			continue
+		}
+		e.blobKeys[metadata.GetBlobKey().String()] = struct{}{}
+
 		requestTime := time.Unix(0, int64(metadata.RequestMetadata.RequestedAt))
 		e.logger.Info("encoding_requested age - picked up blobmetadata", "age", time.Since(requestTime).String(), "blob size bytes", metadata.RequestMetadata.BlobSize, "blob key", metadata.GetBlobKey().String())
 		if float64(time.Since(requestTime).Milliseconds()) > 2000 {
