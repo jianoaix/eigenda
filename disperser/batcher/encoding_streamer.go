@@ -145,6 +145,7 @@ func NewEncodingStreamer(
 		logger:                 logger.With("component", "EncodingStreamer"),
 		exclusiveStartKey:      nil,
 		aBlobAge:               aBlobAge,
+		blobKeys:               make(map[string]struct{}),
 	}, nil
 }
 
