@@ -45,8 +45,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # DataAPI build stage
 FROM common-builder AS dataapi-builder
-WORKDIR /app/disperser
 COPY operators ./operators
+WORKDIR /app/disperser
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -o ./bin/dataapi ./cmd/dataapi
