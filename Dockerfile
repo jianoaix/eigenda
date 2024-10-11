@@ -62,7 +62,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM common-builder AS retriever-builder
 COPY retriever /app/retriever
 COPY node /app/node
-COPY operators/churner /app/operators/churner
+COPY operators ./operators
 WORKDIR /app/retriever
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
