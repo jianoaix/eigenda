@@ -46,6 +46,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # DataAPI build stage
 FROM common-builder AS dataapi-builder
 WORKDIR /app/disperser
+COPY operators ./operators
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -o ./bin/dataapi ./cmd/dataapi
@@ -70,7 +71,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Node build stage
 FROM common-builder AS node-builder
 COPY node /app/node
-COPY operators/churner /app/operators/churner
+COPY operators ./operators
 WORKDIR /app/node
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
