@@ -123,7 +123,7 @@ func (g *Metrics) updateStakeMetrics(rankedOperators []*operators.OperatorStakeS
 	for i, op := range rankedOperators {
 		accuStake += op.StakeShare
 		if idx < len(indices) && i == indices[idx] {
-			g.OperatorsStake.WithLabelValues(label, fmt.Sprintf("%d", i+1)).Set(accuStake)
+			g.OperatorsStake.WithLabelValues(label, fmt.Sprintf("%d", i+1)).Set(accuStake / 100)
 			idx++
 		}
 	}
