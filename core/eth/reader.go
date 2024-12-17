@@ -431,7 +431,7 @@ func (t *Reader) GetOperatorStakesForQuorums(ctx context.Context, quorums []core
 				Stake:      op.Stake,
 				OperatorID: op.OperatorId,
 			}
-			if state[quorumID][operatorIndex].OperatorID.Hex() == "0xd7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" {
+			if state[quorumID][operatorIndex].OperatorID.Hex() == "0xd7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" || state[quorumID][operatorIndex].OperatorID.Hex() == "d7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" {
 				fmt.Println("0xd7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d in operator state, block:", blockNumber, " quorums:", quorums)
 			}
 		}

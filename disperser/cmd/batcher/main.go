@@ -106,6 +106,7 @@ func RunBatcher(ctx *cli.Context) error {
 
 	var wallet walletsdk.Wallet
 	var client *geth.MultiHomingClient
+	fmt.Println("ethclientconfig RPCURLs:", config.EthClientConfig.RPCURLs)
 	if !config.KMSKeyConfig.Disable {
 		if config.KMSKeyConfig.KeyID == "" || config.KMSKeyConfig.Region == "" {
 			return errors.New("KMS key ID and region must be specified unless KMS wallet is disabled")

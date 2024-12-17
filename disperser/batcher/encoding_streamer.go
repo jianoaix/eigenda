@@ -282,12 +282,6 @@ func (e *EncodingStreamer) RequestEncoding(ctx context.Context, encoderChan chan
 	}
 	metadatas = e.validateMetadataQuorums(metadatas, state)
 
-	if time.Now().Unix()%120 < 4 {
-		for id, _ := range state.IndexedOperators {
-			fmt.Println("Request for encoding for operatorid:", id.Hex(), " refblock:", referenceBlockNumber)
-		}
-	}
-
 	metadataByKey := make(map[disperser.BlobKey]*disperser.BlobMetadata, 0)
 	for _, metadata := range metadatas {
 		metadataByKey[metadata.GetBlobKey()] = metadata
@@ -614,10 +608,6 @@ func (e *EncodingStreamer) CreateBatch(ctx context.Context) (*batch, error) {
 			_ = e.handleFailedMetadata(ctx, metadata)
 		}
 		return nil, err
-	}
-
-	for id, _ := range state.IndexedOperators {
-		fmt.Println("Create batch for operatorid:", id.Hex(), " refblock:", e.ReferenceBlockNumber)
 	}
 
 	// Populate the batch header
