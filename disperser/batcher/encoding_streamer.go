@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -689,6 +690,12 @@ func (e *EncodingStreamer) getOperatorState(ctx context.Context, metadatas []*di
 	if err != nil {
 		return nil, fmt.Errorf("error getting operator state at block number %d: %w", blockNumber, err)
 	}
+	fmt.Println("encodingstreamer got operator state, blockNumber:", blockNumber, " quorumIds:", quorumIds)
+	for id, _ := range state.IndexedOperators {
+		if id.Hex() == "0xd7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" || id.Hex() == "d7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" {
+			fmt.Println("operatorid:", id.Hex(), " refblock:", e.ReferenceBlockNumber)
+		}
+	}
 	e.operatorStateCache.Add(cacheKey, state)
 	return state, nil
 }
@@ -717,8 +724,17 @@ func (e *EncodingStreamer) validateMetadataQuorums(metadatas []*disperser.BlobMe
 }
 
 func computeCacheKey(blockNumber uint, quorumIDs []uint8) string {
-	bytes := make([]byte, 8+len(quorumIDs))
+	// Sort the quorumIDs to ensure consistent ordering
+	sortedQuorumIDs := append([]uint8(nil), quorumIDs...) // Create a copy to avoid mutating input
+	sort.Slice(sortedQuorumIDs, func(i, j int) bool {
+		return sortedQuorumIDs[i] < sortedQuorumIDs[j]
+	})
+
+	// Build the key
+	bytes := make([]byte, 8+len(sortedQuorumIDs))
 	binary.LittleEndian.PutUint64(bytes, uint64(blockNumber))
-	copy(bytes[8:], quorumIDs)
-	return string(bytes)
+	copy(bytes[8:], sortedQuorumIDs)
+
+	// Encode as hexadecimal string for safety
+	return fmt.Sprintf("%x", bytes)
 }
