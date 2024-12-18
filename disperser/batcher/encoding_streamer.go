@@ -696,6 +696,17 @@ func (e *EncodingStreamer) getOperatorState(ctx context.Context, metadatas []*di
 			fmt.Println("operatorid:", id.Hex(), " refblock:", e.ReferenceBlockNumber)
 		}
 	}
+
+	state2, err := e.chainState.GetIndexedOperatorState(ctx, blockNumber, []uint8{0, 1, 2})
+	if err != nil {
+		return nil, fmt.Errorf("error getting operator state22 at block number %d: %w", blockNumber, err)
+	}
+	for id, _ := range state2.IndexedOperators {
+		if id.Hex() == "0xd7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" || id.Hex() == "d7afdb3f54ef0512c37e47a3485bc407b10de8ca1fa80c2dacf785059519d28d" {
+			fmt.Println("found operatorid:", id.Hex(), " refblock:", e.ReferenceBlockNumber)
+		}
+	}
+
 	e.operatorStateCache.Add(cacheKey, state)
 	return state, nil
 }
